@@ -1,11 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from "@/components/theme-provider"
-// import { ToasterProvider } from '@/components/toaster-provider'
-// import { ModalProvider } from '@/components/modal-provider'
-// import { CrispProvider } from '@/components/crisp-provider'
-
 import './globals.css'
+import TitleBar from '@/components/titlebar'
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,16 +19,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
-      </body>
+      {/* <TitleBar titleText={""}/> */}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <TitleBar titleBar='Automated Mp3 Tag Editor - v1.0' />
+        <body className={inter.className}>
+            {children}
+        </body>
+        <Toaster />
+      </ThemeProvider>
     </html>
   )
 }

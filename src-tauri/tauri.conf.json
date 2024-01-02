@@ -11,11 +11,79 @@
   },
   "package": {
     "productName": "auto-mp3",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "tauri": {
     "allowlist": {
-      "all": false
+      "fs": {
+        "all": true,
+        "copyFile": false,
+        "createDir": false,
+        "exists": false,
+        "readDir": true,
+        "readFile": true,
+        "removeDir": false,
+        "removeFile": false,
+        "renameFile": true,
+        "scope": ["**"],
+        "writeFile": true
+      },
+      "path": {
+        "all": true
+      },
+      "shell": {
+        "all": true,
+        "execute": true,
+        "open": true,
+        "sidecar": true
+      },
+      "window": {
+        "all": true,
+        "create": true,
+        "center": true,
+        "requestUserAttention": true,
+        "setResizable": true,
+        "setMaximizable": true,
+        "setMinimizable": true,
+        "setClosable": true,
+        "setTitle": true,
+        "maximize": true,
+        "unmaximize": true,
+        "minimize": true,
+        "unminimize": true,
+        "show": true,
+        "hide": true,
+        "close": true,
+        "setDecorations": true,
+        "setAlwaysOnTop": true,
+        "setContentProtected": true,
+        "setSize": true,
+        "setMinSize": true,
+        "setMaxSize": true,
+        "setPosition": true,
+        "setFullscreen": true,
+        "setFocus": true,
+        "setIcon": true,
+        "setSkipTaskbar": true,
+        "setCursorGrab": true,
+        "setCursorVisible": true,
+        "setCursorIcon": true,
+        "setCursorPosition": true,
+        "setIgnoreCursorEvents": true,
+        "startDragging": true,
+        "print": true
+      },
+      "notification": {
+        "all": true
+      },
+      "dialog": {
+        "all": true, 
+        "ask": true, 
+        "confirm": true, 
+        "message": true, 
+        "open": true, 
+        "save": true 
+      }
     },
     "bundle": {
       "active": true,
@@ -59,17 +127,18 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 700,
+        "height": 720,
         "resizable": true,
         "title": "Automated Mp3 Tag Editor - v1.0",
         "width": 1250,
         "visible": false,
         "x": 50,
-        "y": 50
+        "y": 50,
+        "decorations": false
       },
       {
         "width": 1250,
-        "height": 700,
+        "height": 720,
         "decorations": false,
         "url": "splashscreen.html",
         "label": "splashscreen",

@@ -63,6 +63,7 @@ const Start = () => {
         description="Our very own Music Player."
         icon={Music}
         iconColor="text-green-700"
+        otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
       <div className="px-4 lg:px-8">

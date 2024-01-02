@@ -7,6 +7,10 @@
 .yarn/install-state.gz
 .env
 
+#src-tauri
+/src-tauri/.userdata/
+/src-tauri/target/
+
 # testing
 /coverage
 

@@ -14,6 +14,7 @@ const Start = () => {
         description="Meet the team behind Automated Mp3 Tag Editor!"
         icon={Info}
         iconColor="text-grey"
+        otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
       <div className="px-4 lg:px-8">

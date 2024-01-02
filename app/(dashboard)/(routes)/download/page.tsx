@@ -63,6 +63,7 @@ const Start = () => {
         description="Download Mp3 Songs directly converted from YouTube and AudioMack."
         icon={Download}
         iconColor="text-pink-700"
+        otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
       <div className="px-4 lg:px-8">

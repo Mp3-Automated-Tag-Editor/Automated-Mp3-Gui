@@ -17,7 +17,7 @@ async fn close_splashscreen(window: Window) {
 
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![close_splashscreen,set_db, check_directory])
+    .invoke_handler(tauri::generate_handler![close_splashscreen, set_db, check_directory])
     .setup(|app| {
       let main_window = app.get_window("main").unwrap();
       let splashscreen_window = app.get_window("splashscreen").unwrap();
@@ -59,15 +59,17 @@ fn check_directory(var: String) -> Result<bool, bool> {
 
 #[tauri::command(rename_all = "snake_case")]
 async fn set_db(path_var: String) -> Result<(), ()> {
-    let _ = db_build().await;
-    let _ = db_populate(path_var).await;
+    println!("Started Build");
+    let test = db_build().await;
+    let test2_ = db_populate(path_var).await;
+    println!("Completed Build {:?} {:?}", test, test2_);
     Ok(())
 }
 
 async fn db_populate(path_var: String) -> Result<()> {
     let paths = fs::read_dir(path_var.clone()).unwrap();
-    let conn = Connection::open(".userdata/Mp3data.db")?;
-
+    let conn = Connection::open("./.userData/Mp3data.db")?;
+    println!("From DB populate");
     for path in paths {
         // let tag = Tag::read_from_path(path.as_ref())?;
         let file_name = path.as_ref().unwrap().file_name();
@@ -123,7 +125,10 @@ async fn db_populate(path_var: String) -> Result<()> {
 }
 
 async fn db_build() -> Result<()> {
-    let conn = Connection::open(".userdata/Mp3data.db")?;
+    // let test = File::create(".userdata/Mp3data.db")?;
+    // println!("{:?}", test);
+    let conn = Connection::open("./.userData/Mp3data.db")?;
+    let _ = conn.execute("drop table if exists mp3_table_data",(),);
 
     let _ = conn.execute(
         "create table if not exists mp3_table_data (
@@ -155,9 +160,3 @@ async fn db_build() -> Result<()> {
 
     Ok(())
 }
-
-// #[tauri::command(rename_all = "snake_case")]
-// async fn start_search(path_var: String) {
-//   println!("Path Variable: {}", path_var);
-// }
-
