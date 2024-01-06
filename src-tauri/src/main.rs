@@ -1,11 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, Window};
+use tauri::{Manager, Window, Runtime};
 use rusqlite::{Connection, Result};
 // use std::collections::HashMap;
 // use id3::{Tag, TagLike};
+use std::error::Error;
 use std::fs;
+use std::path::Path;
+use std::fs::{read_dir,OpenOptions, File, write};
+use std::io::{Read, Write};
+use std::io;
+use serde::{Serialize, Deserialize};
+
+mod json;
 
 #[tauri::command]
 async fn close_splashscreen(window: Window) {
@@ -17,32 +25,84 @@ async fn close_splashscreen(window: Window) {
 
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![close_splashscreen, set_db, check_directory])
+    .invoke_handler(tauri::generate_handler![get_settings_data, save_settings, close_splashscreen, set_db, check_directory, long_job])
+    .plugin(tauri_plugin_store::Builder::default().build())
     .setup(|app| {
       let main_window = app.get_window("main").unwrap();
       let splashscreen_window = app.get_window("splashscreen").unwrap();
+      json::init();
       // we perform the initialization code on a new task so the app doesn't freeze
       tauri::async_runtime::spawn(async move {
         // initialize your app here instead of sleeping :)
         println!("Initializing...");
-        std::thread::sleep(std::time::Duration::from_secs(7));
+        std::thread::sleep(std::time::Duration::from_secs(1));
         println!("Done initializing.");
 
         // After it's done, close the splashscreen and display the main window
         splashscreen_window.close().unwrap();
         main_window.show().unwrap();
       });
+      
       Ok(())
     })
     .run(tauri::generate_context!())
     .expect("failed to launch app");
 }
 
-// #[derive(Debug)]
-// struct Cat {
-//     name: String,
-//     color: String,
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Settings {
+    threads: i32,
+    test: String,
+    developer_settings: bool
+}
+
+// #[derive(Deserialize, Debug)]
+// #[serde(tag = "type", rename_all = "camelCase")]
+// enum Profile {
+//     Personal {
+//         id: i32,
+//         details: PersonalDetails,
+//     },
+//     Business {
+//         id: i32,
+//         details: BusinessDetails,
+//     },
 // }
+
+#[tauri::command]
+fn get_settings_data() -> Settings {
+
+    let mut file = File::open(json::get_settings_path()).expect("Unable to open");
+
+    // Read the file content into a String
+    let mut content = String::new();
+    file.read_to_string(&mut content).expect("Unable to Read");
+
+    // Deserialize the JSON content into your struct
+    let parsed_json: Settings = serde_json::from_str(&content).expect("JSON was not well-formatted");
+    parsed_json
+}
+
+#[tauri::command]
+fn save_settings(data: Settings) -> Result<(), ()> {
+    let j = serde_json::to_string(&data);
+    println!("{:?}", &j);
+    let mut f = OpenOptions::new().write(true).truncate(true).open(json::get_settings_path()).expect("Unable to create file");
+    f.write_all(j.unwrap().as_bytes()).expect("Unable to write data");
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn long_job<R: Runtime>(window: tauri::Window<R>) {
+    println!("Hello from BE");
+    for i in 0..101 {
+        // println!("{}", i.clone());
+        window.emit("progress", i).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
 
 #[tauri::command]
 fn check_directory(var: String) -> Result<bool, bool> {
@@ -60,9 +120,9 @@ fn check_directory(var: String) -> Result<bool, bool> {
 #[tauri::command(rename_all = "snake_case")]
 async fn set_db(path_var: String) -> Result<(), ()> {
     println!("Started Build");
-    let test = db_build().await;
+    let num_paths = db_build(path_var.clone()).await;
     let test2_ = db_populate(path_var).await;
-    println!("Completed Build {:?} {:?}", test, test2_);
+    println!("Completed Build {:?} {:?}", num_paths, test2_);
     Ok(())
 }
 
@@ -120,11 +180,11 @@ async fn db_populate(path_var: String) -> Result<()> {
         )",(file_name.into_string().unwrap(), path_value.to_str().unwrap()));
     }
 
-    println!("Path Variable: {}", path_var);
+    println!("Process Completed @: {}", path_var);
     Ok(())
 }
 
-async fn db_build() -> Result<()> {
+async fn db_build(path_var: String) -> Result<u32> {
     // let test = File::create(".userdata/Mp3data.db")?;
     // println!("{:?}", test);
     let conn = Connection::open("./.userData/Mp3data.db")?;
@@ -155,8 +215,9 @@ async fn db_build() -> Result<()> {
          )",
         (), // &[&path_var.to_string()]
     );
+    let paths = read_dir(path_var).unwrap();
+    let num_paths: u32 = paths.count().try_into().unwrap();
+    println!("Created Table, Total Files: {}", num_paths.clone());
 
-    println!("Created Table");
-
-    Ok(())
+    Ok(num_paths)
 }

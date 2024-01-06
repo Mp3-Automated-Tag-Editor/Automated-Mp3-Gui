@@ -60,7 +60,7 @@ const Start = () => {
     <div>
       <Heading
         title="Edit"
-        description="Manually edit Music Metadata (In case our classifiers can't figure out your song)."
+        description="Manually edit Music Metadata (In case our classifiers can&apos;t figure out your song)."
         icon={Pencil}
         iconColor="text-orange-700"
         otherProps="mb-8"

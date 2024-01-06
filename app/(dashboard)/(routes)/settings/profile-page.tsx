@@ -6,9 +6,9 @@ export default function SettingsProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Profile</h3>
+        <h3 className="text-lg font-medium">General Settings</h3>
         <p className="text-sm text-muted-foreground">
-          This is how others will see you on the site.
+          Configure the Settings related to the Scraper.
         </p>
       </div>
       <Separator />

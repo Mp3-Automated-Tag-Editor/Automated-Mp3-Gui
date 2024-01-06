@@ -15,12 +15,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { Progress } from "@/components/ui/progress"
 import { invoke } from '@tauri-apps/api/tauri'
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Dialog from "@/components/dialog";
 import Alert from "@/components/alert";
+import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
+import { z } from "zod";
 
 
 const Start = () => {
@@ -30,6 +33,19 @@ const Start = () => {
     title: "",
     data: ""
   })
+
+  const [progress, setProgress] = useState<number>(0);
+
+  // let unListen: UnlistenFn;
+  useEffect(() => {
+    async function fetchProgressDetails() {
+      let unListen: UnlistenFn = await listen('progress', (event) => {
+        setProgress(z.number().parse(event.payload));
+      });
+      // console.log(progress);
+    }
+    fetchProgressDetails();
+  }, [progress])
 
   function startSearch() {
     if (!directory) {
@@ -106,13 +122,13 @@ const Start = () => {
         {error === true ? (
           <>
             <Dialog msg={errorDetails.data} title={errorDetails.title} variant="destructive" type={true} />
-            <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError}/>
+            <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} />
           </>
         ) : (
           directory === "" || directory === undefined || directory === null ? null : <Dialog msg={directory} title="Selected Directory" variant="none" type={false} />
         )
         }
-          <div className="rounded-lg 
+        <div className="rounded-lg 
                 border 
                 w-full 
                 p-4 
@@ -120,70 +136,74 @@ const Start = () => {
                 md:px-6 
                 focus-within:shadow-sm
             ">
-            <h5 className="text-l font-bold">Some Points to Note:</h5>
-            <p className="text-sm py-4">
-              <ol>
-                <li>1. Make sure to select a directory which contains Mp3 files only.</li>
-                <li>2. Mp3 files that contain incomplete Metadata will also be searched and indexed.</li>
-                <li>3. To download indexed database, kindly turn on Developer Settings in <b>Settings</b>, as this is turned off by default.</li>
-                <li>4. Make sure to configure the application, including number of threads to be used to hasten the indexing process.</li>
-                <li>5. Remember, the trial allows <b>100 Deep Searches</b> only, kindly buy more credits to index more songs.</li>
-              </ol>
+          <h5 className="text-l font-bold">Some Points to Note:</h5>
+          <p className="text-sm py-4">
+            <ol>
+              <li>1. Make sure to select a directory which contains Mp3 files only.</li>
+              <li>2. Mp3 files that contain incomplete Metadata will also be searched and indexed.</li>
+              <li>3. To download indexed database, kindly turn on Developer Settings in <b>Settings</b>, as this is turned off by default.</li>
+              <li>4. Make sure to configure the application, including number of threads to be used to hasten the indexing process.</li>
+              <li>5. Remember, the trial allows <b>100 Deep Searches</b> only, kindly buy more credits to index more songs.</li>
+            </ol>
 
-            </p>
-            <div className="text-sm pb-2">Happy Searching!</div>
+          </p>
+          <div className="text-sm pb-2">Happy Searching!</div>
 
-            <div className="grid
+          <div className="grid
                 grid-cols-12
                 gap-2 py-2">
-              <Button onClick={selectDirectory} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                Select Directory
-              </Button>
+            <Button onClick={selectDirectory} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+              Select Directory
+            </Button>
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                    Settings
-                  </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Edit profile</SheetTitle>
-                    <SheetDescription>
-                      Make changes to your profile here. Click save when you're done.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="name" className="text-right">
-                        Name
-                      </Label>
-                      <Input id="name" value="Pedro Duarte" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="username" className="text-right">
-                        Username
-                      </Label>
-                      <Input id="username" value="@peduarte" className="col-span-3" />
-                    </div>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                  Settings
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Edit profile</SheetTitle>
+                  <SheetDescription>
+                    Make changes to your profile here. Click save when you&apos;re done.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Name
+                    </Label>
+                    <Input id="name" value="Pedro Duarte" className="col-span-3" />
                   </div>
-                  <SheetFooter>
-                    <SheetClose asChild>
-                      <Button type="submit">Save changes</Button>
-                    </SheetClose>
-                  </SheetFooter>
-                </SheetContent>
-              </Sheet>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="username" className="text-right">
+                      Username
+                    </Label>
+                    <Input id="username" value="@peduarte" className="col-span-3" />
+                  </div>
+                </div>
+                <SheetFooter>
+                  <SheetClose asChild>
+                    <Button type="submit">Save changes</Button>
+                  </SheetClose>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
 
 
 
-              <Button onClick={startSearch} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                Start
-              </Button>
-            </div>
+            <Button onClick={() => {
+              setProgress(0);
+              invoke('long_job');
+            }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+              Start
+            </Button>
           </div>
-      </div>
+          <Progress indicatorColor="bg-black" value={progress} className="w-1/2" />
 
+        </div>
+      </div>
     </div>
   );
 }

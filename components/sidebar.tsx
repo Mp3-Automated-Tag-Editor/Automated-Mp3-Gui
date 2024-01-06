@@ -79,7 +79,12 @@ export const Sidebar = (
               href={route.href}
               className={cn(
                 "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition",
-                pathname === route.href ? "text-white bg-white/10" : "text-zinc-400",
+                pathname === route.href
+                  ? "text-white bg-white/10"
+                  : "text-zinc-400",
+                // route.href.startsWith("/settings")
+                //   ? "text-white bg-white/10"
+                //   : "text-zinc-400",
               )}
             >
               <div className="flex items-center flex-1">

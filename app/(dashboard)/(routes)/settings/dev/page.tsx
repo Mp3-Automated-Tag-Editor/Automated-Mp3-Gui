@@ -5,9 +5,9 @@ export default function SettingsDisplayPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Display</h3>
+        <h3 className="text-lg font-medium">Developer Settings</h3>
         <p className="text-sm text-muted-foreground">
-          Turn items on or off to control what&apos;s displayed in the app.
+          Configure your Developer Settings.
         </p>
       </div>
       <Separator />

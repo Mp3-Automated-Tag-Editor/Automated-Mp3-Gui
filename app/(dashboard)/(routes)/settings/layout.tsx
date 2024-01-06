@@ -1,44 +1,51 @@
+"use client";
+
 import { Metadata } from "next"
-import Image from "next/image"
 
 import { Separator } from "@/components/ui/separator"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Heading } from "@/components/heading"
 import { Settings } from "lucide-react"
+import { useContext, useEffect } from "react"
+import { ConfigContext } from "@/components/context/ConfigContext"
 
-export const metadata: Metadata = {
-  title: "Forms",
-  description: "Advanced form example using react-hook-form and Zod.",
-}
-
-const sidebarNavItems = [
-  {
-    title: "Profile",
-    href: "/settings",
-  },
-  {
-    title: "Account",
-    href: "/settings/account",
-  },
-  {
-    title: "Appearance",
-    href: "/settings/appearance",
-  },
-  {
-    title: "Notifications",
-    href: "/settings/notifications",
-  },
-  {
-    title: "Display",
-    href: "/settings/display",
-  },
-]
 
 interface SettingsLayoutProps {
   children: React.ReactNode
 }
 
 export default function SettingsLayout({ children }: SettingsLayoutProps) {
+  const { configs } = useContext(ConfigContext);
+  
+  var sidebarNavItems = [
+    {
+      title: "General",
+      href: "/settings",
+    },
+    {
+      title: "Account",
+      href: "/settings/account",
+    },
+    {
+      title: "Appearance",
+      href: "/settings/appearance",
+    },
+    {
+      title: "Notifications",
+      href: "/settings/notifications",
+    },
+    ...(
+      configs.developerSettings ?
+    [
+      {
+        title: "Developer",
+        href: "/settings/dev",
+      }
+    ] : []
+    ),
+  ]
+
+
   return (
     <>
       <Heading
@@ -46,7 +53,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
         description="Manage account settings."
         icon={Settings}
         iconColor="text-gray-700"
-        // bgColor="bg-gray-700/10"
+      // bgColor="bg-gray-700/10"
       />
       <div className="space-y-6 p-8 pb-16 md:block">
         {/* <div className="space-y-0.5">
