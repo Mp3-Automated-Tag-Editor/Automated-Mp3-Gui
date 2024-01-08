@@ -10,7 +10,7 @@ import { CalendarDays } from "lucide-react"
 
 export default function AvatarCircle() {
     return (
-        <div className="position: fixed">
+        <div className="position: fixed z-50">
             <HoverCard>
                 <HoverCardTrigger asChild>
                     <Button variant="link">

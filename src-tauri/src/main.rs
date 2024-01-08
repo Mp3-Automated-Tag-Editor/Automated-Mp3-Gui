@@ -26,11 +26,10 @@ async fn close_splashscreen(window: Window) {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![get_settings_data, save_settings, close_splashscreen, set_db, check_directory, long_job])
-    .plugin(tauri_plugin_store::Builder::default().build())
     .setup(|app| {
       let main_window = app.get_window("main").unwrap();
       let splashscreen_window = app.get_window("splashscreen").unwrap();
-      json::init();
+    //   json::init();
       // we perform the initialization code on a new task so the app doesn't freeze
       tauri::async_runtime::spawn(async move {
         // initialize your app here instead of sleeping :)
@@ -45,6 +44,7 @@ fn main() {
       
       Ok(())
     })
+    .plugin(tauri_plugin_store::Builder::default().build())
     .run(tauri::generate_context!())
     .expect("failed to launch app");
 }
@@ -100,7 +100,8 @@ async fn long_job<R: Runtime>(window: tauri::Window<R>) {
     for i in 0..101 {
         // println!("{}", i.clone());
         window.emit("progress", i).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        // window.emit("confirmation", i).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
 }
 

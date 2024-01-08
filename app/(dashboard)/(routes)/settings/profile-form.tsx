@@ -67,8 +67,6 @@ export function ProfileForm() {
       value: data.developerSettings
     });
     
-    console.log(configs);
-
     toast({
       title: "You submitted the following values:",
       description: (
