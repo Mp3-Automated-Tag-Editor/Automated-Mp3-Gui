@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import Dialog from "@/components/dialog";
 import Alert from "@/components/alert";
 import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
-import { z } from "zod";
+import { array, boolean, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
@@ -33,46 +33,96 @@ import { cn } from "@/lib/utils";
 
 const store = new Store(".settings.dat");
 
+interface WindowEmit {
+  state: boolean,
+  numPaths: number
+}
+
 const Start = () => {
   const [directory, setDirectory] = useState<any>();
+  const [numFiles, setNumFiles] = useState<number>(0);
   const [error, setError] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<{ title: string, data: string }>({
     title: "",
     data: ""
   })
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<{ state: boolean, msg: string }>({ state: false, msg: "" });
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
   const [components, setComponents] = useState<any>([]);
 
+  const [dataID, setDataID] = useState<any>(new Set());
+  function addDataID (dataID: any) {
+    setDataID((previousState: any) => new Set([...previousState, dataID]))
+  }
+  function removeDataID (x: any) {
+    setDataID(dataID.delete(x));
+  }
+
+
+  const [counter, setCounter] = useState<number>(0);
+
   const consoleRef = useRef(null);
 
   // let unListen: UnlistenFn;
+
   useEffect(() => {
-    async function fetchProgressDetails() {
-      let unListen: UnlistenFn = await listen('progress', (event) => {
-        setProgress(z.number().parse(event.payload));
+    async function listenDbInitialization() {
+      async function loadData() {
+        store.load();
+        await store.load();
+        const data = await store.get('settings');
+        setSettingsData(data);
+      }
+      loadData();
+
+      let unListen2: UnlistenFn = await listen('db_init_paths', (event) => {
+        setNumFiles(z.number().parse(event.payload));
       });
-      // console.log(progress);
     }
 
-    async function loadData() {
-      store.load();
-      await store.load();
-      const data = await store.get('settings');
-      setSettingsData(data);
+    listenDbInitialization();
+  }, [numFiles])
+
+  interface WindowEmit {
+    id: number,
+    state: boolean,
+    data: string
+  }
+
+  useEffect(() => {
+    async function listenProgressDetails() {
+      let unListen2: UnlistenFn = await listen('progress_start', (event) => {
+        const data: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+        if (!dataID.has(data.id)) {
+          dataID.addDataID(data.id);
+          const newData: WindowEmit = { id: data.id, state: data.state, data: data.data }
+          setComponents((prevComponents: any) => [...prevComponents, newData]);
+        }
+      });
+
+      let unListen: UnlistenFn = await listen('progress_end', (event) => {
+        const data: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+        if (dataID.has(data.id)) {
+          dataID.delete(data.id);
+          const updatedData: WindowEmit = { id: data.id, state: data.state, data: data.data }
+          setProgress(progress + 1);
+          setComponents((prevComponents: any) => [...prevComponents, updatedData]);
+        }
+
+      });
+
     }
-    loadData();
-    fetchProgressDetails();
+
+    listenProgressDetails();
 
     return () => {
-      setComponents((prevComponents: any) => [...prevComponents,
-      <SongItem key={progress} percentage={Math.floor(Math.random() * 101)} status={false} id={progress} path="D:\Music\Latest Songs-Incomplete\5 Seconds of Summer - Amnesia.mp3" />
-      ]);
+      console.log(components);
+      console.log(dataID);
     }
     // ScrollDown();
-  }, [progress]);
+  }, [components]);
 
   const ScrollDown = (ref: any) => {
     window.scrollTo({
@@ -82,7 +132,7 @@ const Start = () => {
     });
   };
 
-  function startSearch() {
+  async function startSearch() {
     if (!directory) {
       setErrorDetails({
         title: "No Selected Directory",
@@ -96,7 +146,19 @@ const Start = () => {
         data: ""
       })
       setError(false);
-      invoke('set_db', { path_var: directory });
+
+      setLoading({ state: true, msg: "Loading your Database..." });
+      const val: number = await invoke('initialize_db', { path_var: directory });
+      setNumFiles(val);
+      setLoading({ state: false, msg: "" });
+
+      setDisplayConsole(!displayConsole);
+      setProgress(0);
+      setTimeout(() => {
+        ScrollDown(consoleRef.current);
+      }, 2000);
+      const elapsedTime = await invoke('start_scrape_process');
+      console.log(elapsedTime);
     };
   }
 
@@ -106,7 +168,6 @@ const Start = () => {
         return message;
       })
       .catch((error) => console.error(error));
-    console.log(msg);
     return msg;
   }
 
@@ -144,17 +205,17 @@ const Start = () => {
 
   return (
     <div>
-      {loading ? <Loading /> :
+      {loading.state ? <Loading msg={loading.msg} /> :
         <>
           <Heading
-            title="Start Search"
-            description="Our most advanced Vector based AI-indexing model for music metadata."
+            title={displayConsole ? "Start Search" : "Searching..."}
+            description={displayConsole ? "Our most advanced Vector based AI-indexing model for music metadata." : "Getting your music ready for you!"}
             icon={Play}
             iconColor="text-violet-500"
             otherProps="mb-8"
           // bgColor="bg-violet-500/10"
           />
-          <div className="px-4 my-4 lg:px-8">
+          <div className={cn("px-4 my-4 lg:px-8", !displayConsole ? "hidden" : "visible")}>
 
             {error === true ? (
               <>
@@ -230,15 +291,7 @@ const Start = () => {
 
 
 
-                <Button onClick={() => {
-                  setDisplayConsole(!displayConsole);
-                  setProgress(0);
-                  setTimeout(() => {
-                    ScrollDown(consoleRef.current);
-                  }, 2000);
-                  invoke('long_job');
-                  
-                }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                <Button onClick={() => { startSearch() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
                   Start
                 </Button>
               </div>
@@ -253,7 +306,7 @@ const Start = () => {
                 md:px-6 
                 focus-within:shadow-sm
             ">
-              <Progress indicatorColor="bg-black" value={progress} className="w-full" />
+              <Progress indicatorColor="bg-black" value={progress * 100 / numFiles} className="w-full" />
               {/*Make a loading component that renders each time, and push to array only after confirmation is sent from backend*/}
               <div className="fakeScreen overflow-y-scroll">
                 <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
@@ -262,7 +315,11 @@ const Start = () => {
                 <p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
                 <p className="line2">Initialization Complete, Listening for events...</p>
                 <Separator className="my-2" />
-                {components}
+                {
+                  components.map((obj: WindowEmit) => {
+                    <SongItem key={obj.id} percentage={0} status={obj.state} id={obj.id} path="D:\Music\Latest Songs-Incomplete\5 Seconds of Summer - Amnesia.mp3" />
+                  })
+                }
                 <p className="line4">&gt;<span className="cursor4">_</span></p>
                 <div id="snap"></div>
               </div>

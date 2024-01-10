@@ -20,6 +20,7 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.5.4", features = [ "window-all", "notification-all", "path-all", "fs-all", "shell-all", "dialog-all"] }
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 tokio = { version = "1.33.0", features = ["full"] }
+reqwest = { version="0.11", features = ["blocking"] } 
 anyhow = "1"
 dirs = "5.0.1"
 diesel = { version = "2.1.3", features = ["sqlite"] }

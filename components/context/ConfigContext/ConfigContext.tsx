@@ -34,8 +34,6 @@ const ConfigsProvider: FC<ProviderPorps> = (props) => {
 
     useEffect(() => {
         const asFunction = async () => {
-            // let jsonData: Settings = await invoke('get_settings_data');
-            // setSettingsJsonData(jsonData)
             await store.load();
 
             const keys = await store.keys()

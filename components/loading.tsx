@@ -4,13 +4,13 @@
 import '../app/globals.css'
 
 
-const Loading = () => {
+const Loading = ({msg}: {msg: string}) => {
 
     return (
         <div className="relative flex flex-col mt-60 justify-center items-center">
             <div className="loader"></div>
 
-            <div className='my-5 text-lg font-medium'>loading...</div>
+            <div className='my-5 text-lg font-medium'>{msg}</div>
         </div>
     );
 }
