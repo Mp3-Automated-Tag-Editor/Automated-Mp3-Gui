@@ -2,17 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{Manager, Window, Runtime};
-// use std::collections::HashMap;
-// use id3::{Tag, TagLike};
-use std::error::Error;
 use std::fs;
-use std::path::Path;
-use std::fs::{read_dir,OpenOptions, File, write};
+use std::fs::{read_dir,OpenOptions, File};
 use std::io::{Read, Write};
-use std::io;
 use std::env;
-use serde::{Serialize, Deserialize};
-use rusqlite::{Connection, Result};
+use rusqlite::{Result};
 use dotenv::dotenv;
 
 mod types;

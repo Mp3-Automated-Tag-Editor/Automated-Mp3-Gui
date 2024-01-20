@@ -1,12 +1,20 @@
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use reqwest;
-use rusqlite::{params, Connection};
+use rusqlite::{params};
 use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use tauri::{Manager, Runtime, Window};
+use tauri::{Runtime};
+
+/*
+TODO:
+- Retreive Threads number from settings.json file
+- Build out API functionality to retreive Album Art as well for given album (Look into both solutions, either calling endpoint, or modifying current data)
+- In place file editing
+- Scrape Summary - emit function, then display summary componenets.
+*/
 
 use crate::types::ApiResponse;
 use crate::types::Window_Emit;
@@ -21,7 +29,7 @@ fn make_api_call<R: Runtime>(
 ) {
     // Perform a GET request using reqwest
 
-    let req_url = env::var("DEV_API_ENDPOINT").unwrap().to_string() + endpoint.clone();
+    let req_url = env::var("DEV_API_ENDPOINT").unwrap().to_string() + endpoint;
 
     window
         .emit(
@@ -49,7 +57,7 @@ fn make_api_call<R: Runtime>(
                 // Process the response if needed
                 println!(
                     "Successful response from {}, thread {}",
-                    endpoint.clone(),
+                    endpoint,
                     i
                 );
 
@@ -57,17 +65,47 @@ fn make_api_call<R: Runtime>(
                     serde_json::from_str(response.text().unwrap().as_str())
                         .expect("Failed to deserialize JSON");
 
-                let _ = db_conn
-                    .execute(
-                        "INSERT INTO mp3_table_data (file_name, path, title, artist, album) VALUES (?1, ?2, ?3, ?4, ?5)",
-                        params![
-                            endpoint,
-                            path,
-                            api_response.title,
-                            api_response.artist,
-                            api_response.data.album.value
-                        ],
-                    )
+                let _ = db_conn.execute("INSERT INTO mp3_table_data (
+                                file_name, 
+                                path, 
+                                title, 
+                                artist, 
+                                album, 
+                                year, 
+                                track, 
+                                genre,
+                                comment, 
+                                album_artist, 
+                                composer, 
+                                discno, 
+                                successfulFieldCalls,
+                                successfulMechanismCalls,
+                                successfulQueries,
+                                totalFieldCalls,
+                                totalMechanismCalls,
+                                totalSuccessfulQueries,
+                                album_art
+                            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",params![
+                                    endpoint,
+                                    path,
+                                    api_response.title,
+                                    api_response.artist,
+                                    api_response.data.album.value,
+                                    api_response.data.year.value,
+                                    api_response.data.track.value,
+                                    api_response.data.genre.value,
+                                    api_response.data.comments.value,
+                                    api_response.data.albumArtist.value,
+                                    api_response.data.composer.value,
+                                    api_response.data.discno.value,
+                                    api_response.calls.successfulMechanismCalls,
+                                    api_response.calls.successfulMechanismCalls,
+                                    api_response.calls.successfulQueries,
+                                    api_response.calls.totalMechanismCalls,
+                                    api_response.calls.totalMechanismCalls,
+                                    api_response.calls.totalQueries,
+                                    path
+                                ])
                     .expect("Error Inserting data");
                 println!("Inserted data into the database");
             } else {

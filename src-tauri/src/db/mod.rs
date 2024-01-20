@@ -1,7 +1,5 @@
 use std::fs;
 use std::path::Path;
-use std::io::Write;
-use std::fs::OpenOptions;
 use rusqlite::{Connection, Result};
 
 // Check if a database file exists, and create one if it does not.
@@ -128,7 +126,7 @@ pub fn get_db_path() -> String {
 
 pub async fn get_file_names(path_var: String) -> Result<Vec<String>> {
     let paths = fs::read_dir(path_var.clone()).unwrap();
-    let conn = Connection::open(get_db_path()).expect("Cannot Connect to DB");
+    let _conn = Connection::open(get_db_path()).expect("Cannot Connect to DB");
 
     let mut file_names: Vec<String> = Vec::new();
 
@@ -142,7 +140,7 @@ pub async fn get_file_names(path_var: String) -> Result<Vec<String>> {
 
 pub async fn get_file_paths(path_var: String) -> Result<Vec<String>> {
     let paths = fs::read_dir(path_var.clone()).unwrap();
-    let conn = Connection::open(get_db_path()).expect("Cannot Connect to DB");
+    let _conn = Connection::open(get_db_path()).expect("Cannot Connect to DB");
 
     let mut file_paths: Vec<String> = Vec::new();
 
