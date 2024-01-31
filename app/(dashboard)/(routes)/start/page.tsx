@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import Dialog from "@/components/dialog";
 import Alert from "@/components/alert";
 import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
-import { array, boolean, z } from "zod";
+import { array, boolean, number, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
@@ -42,30 +42,47 @@ const Start = () => {
   const [directory, setDirectory] = useState<any>();
   const [numFiles, setNumFiles] = useState<number>(0);
   const [error, setError] = useState<boolean>(false);
-  const [errorDetails, setErrorDetails] = useState<{ title: string, data: string }>({
-    title: "",
-    data: ""
-  })
+  const [errorDetails, setErrorDetails] = useState<{ title: string, data: string }>({ title: "", data: "" })
   const [loading, setLoading] = useState<{ state: boolean, msg: string }>({ state: false, msg: "" });
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
+
+  // Store initially loaded components
   const [components, setComponents] = useState<any>([]);
 
-  const [dataID, setDataID] = useState<any>(new Set());
-  function addDataID (dataID: any) {
-    setDataID((previousState: any) => new Set([...previousState, dataID]))
-  }
-  function removeDataID (x: any) {
-    setDataID(dataID.delete(x));
-  }
-
-
-  const [counter, setCounter] = useState<number>(0);
+  //Terminus 
+  const [hashmap, setHashmap] = useState<Map<Number, WindowEmit>>(new Map());
 
   const consoleRef = useRef(null);
 
-  // let unListen: UnlistenFn;
+  useEffect(() => {
+    async function listenProgressDetails() {
+      let unListen1: UnlistenFn = await listen('progress_start', (event) => {
+        const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+        hashmap.set(progressData.id, progressData);
+        setHashmap(new Map(hashmap));
+      });
+    }
+
+    async function confirmProgressDetails() {
+      let unListen2: UnlistenFn = await listen('progress_end', (event) => {
+        const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+        hashmap.set(progressData.id, progressData);
+        setHashmap(new Map(hashmap));
+        setProgress(hashmap.size);
+      });
+    }
+    listenProgressDetails();
+    confirmProgressDetails();
+  }, []);
+
+  // Example: Updating the Map
+
+  // Effect to log the Map values whenever it changes
+  useEffect(() => {
+    console.log('Map values:', hashmap);
+  }, [hashmap]);
 
   useEffect(() => {
     async function listenDbInitialization() {
@@ -90,39 +107,6 @@ const Start = () => {
     state: boolean,
     data: string
   }
-
-  useEffect(() => {
-    async function listenProgressDetails() {
-      let unListen2: UnlistenFn = await listen('progress_start', (event) => {
-        const data: WindowEmit = JSON.parse(JSON.stringify(event.payload));
-        if (!dataID.has(data.id)) {
-          dataID.addDataID(data.id);
-          const newData: WindowEmit = { id: data.id, state: data.state, data: data.data }
-          setComponents((prevComponents: any) => [...prevComponents, newData]);
-        }
-      });
-
-      let unListen: UnlistenFn = await listen('progress_end', (event) => {
-        const data: WindowEmit = JSON.parse(JSON.stringify(event.payload));
-        if (dataID.has(data.id)) {
-          dataID.delete(data.id);
-          const updatedData: WindowEmit = { id: data.id, state: data.state, data: data.data }
-          setProgress(progress + 1);
-          setComponents((prevComponents: any) => [...prevComponents, updatedData]);
-        }
-
-      });
-
-    }
-
-    listenProgressDetails();
-
-    return () => {
-      console.log(components);
-      console.log(dataID);
-    }
-    // ScrollDown();
-  }, [components]);
 
   const ScrollDown = (ref: any) => {
     window.scrollTo({
@@ -157,7 +141,7 @@ const Start = () => {
       setTimeout(() => {
         ScrollDown(consoleRef.current);
       }, 2000);
-      const elapsedTime = await invoke('start_scrape_process');
+      const elapsedTime = await invoke('start_scrape_process',  { pathVar: directory });
       console.log(elapsedTime);
     };
   }
@@ -316,9 +300,16 @@ const Start = () => {
                 <p className="line2">Initialization Complete, Listening for events...</p>
                 <Separator className="my-2" />
                 {
-                  components.map((obj: WindowEmit) => {
-                    <SongItem key={obj.id} percentage={0} status={obj.state} id={obj.id} path="D:\Music\Latest Songs-Incomplete\5 Seconds of Summer - Amnesia.mp3" />
+                  [...hashmap].map((entry) => {
+                    let key = entry[0];
+                    let value = entry[1];
+                    return (
+                      <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
+                    )
                   })
+                  // Array.from(hashmap.entries()).map(([key, value]) => (
+                  //   <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
+                  // ))
                 }
                 <p className="line4">&gt;<span className="cursor4">_</span></p>
                 <div id="snap"></div>

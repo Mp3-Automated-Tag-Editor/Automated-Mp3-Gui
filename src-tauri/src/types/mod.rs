@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -39,4 +40,46 @@ pub struct MetaData {
     total_mechanism_calls: u32,
     total_successful_queries: u32,
     album_art: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClassifierOptions {
+    #[serde(flatten)]
+    pub options: HashMap<String, f64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ValueField<T> {
+    pub classifierOptions: ClassifierOptions,
+    pub value: T,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Data {
+    pub artist: ValueField<String>,
+    pub title: ValueField<String>,
+    pub album: ValueField<String>,
+    pub year: ValueField<u32>,
+    pub track: ValueField<u32>,
+    pub comments: ValueField<String>,
+    pub albumArtist: ValueField<String>,
+    pub composer: ValueField<String>,
+    pub discno: ValueField<u32>,
+    pub genre: ValueField<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Calls {
+    pub successfulMechanismCalls: u32,
+    pub totalMechanismCalls: u32,
+    pub successfulQueries: u32,
+    pub totalQueries: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApiResponse {
+    pub artist: String,
+    pub title: String,
+    pub data: Data,
+    pub calls: Calls,
 }

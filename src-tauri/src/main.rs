@@ -2,16 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{Manager, Window, Runtime};
-// use std::collections::HashMap;
-// use id3::{Tag, TagLike};
-use std::error::Error;
 use std::fs;
-use std::path::Path;
-use std::fs::{read_dir,OpenOptions, File, write};
+use std::fs::{read_dir,OpenOptions, File};
 use std::io::{Read, Write};
-use std::io;
-use serde::{Serialize, Deserialize};
-use rusqlite::{Connection, Result};
+use std::env;
+use rusqlite::{Result};
+use dotenv::dotenv;
 
 mod types;
 mod db;
@@ -24,6 +20,8 @@ fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![start_scrape_process, get_settings_data, save_settings, close_splashscreen, initialize_db, check_directory, long_job])
     .setup(|app| {
+      dotenv().ok();
+
       let main_window = app.get_window("main").unwrap();
       let splashscreen_window = app.get_window("splashscreen").unwrap();
 
@@ -71,34 +69,18 @@ fn save_settings(data: types::Settings) -> Result<(), ()> {
 }
 
 #[tauri::command]
-async fn start_scrape_process<R: Runtime>(window: tauri::Window<R>) -> Result<u32, ()> {
-    let endpoints = vec![
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=1",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=2",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=3",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=4",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=5",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=6",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=7",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=8",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=9",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=10",
-        "https://blog-app-service-gag1.onrender.com/api/post/posts?pageNo=0&limit=11",
-    ];
+async fn start_scrape_process<R: Runtime>(window: tauri::Window<R>, path_var: String) -> Result<u32, ()> {
+    let file_names = db::get_file_names(path_var.clone()).await;
+    let file_paths = db::get_file_paths(path_var).await;
 
-    let num_workers = 4;
+    let num_workers = 2;
 
     let start_time = std::time::Instant::now();
-    threading::threaded_execution(window, endpoints.clone(), num_workers);
+    threading::threaded_execution(window, file_names.unwrap(), file_paths.unwrap(), num_workers, db::get_db_path());
     let elapsed_time = start_time.elapsed();
 
     println!("Threaded Execution Time: {:?}", elapsed_time);
     Ok(elapsed_time.as_secs().try_into().unwrap())
-    // let start_time = std::time::Instant::now();
-    // threading::non_threaded_execution(endpoints.clone());
-    // let elapsed_time2 = start_time.elapsed();
-    // window.emit("progress", 2).unwrap();
-    // println!("Non-Threaded Execution Time: {:?}", elapsed_time2);
 }
 
 #[tauri::command]
@@ -116,73 +98,12 @@ fn check_directory(var: String) -> Result<bool, bool> {
 
 #[tauri::command(rename_all = "snake_case")]
 async fn initialize_db<R: Runtime>(window: tauri::Window<R>, path_var: String) -> Result<u32, ()> {
-// async fn initialize_db(path_var: String) -> Result<(), ()> {
     println!("Started Build");
-    // window.emit("db_init_state", true).unwrap();
-    let _ = db_populate(path_var.clone()).await;
+    // let _ = db::db_populate(path_var.clone()).await;
     let num_paths: u32 = read_dir(path_var).unwrap().count().try_into().unwrap();    
     std::thread::sleep(std::time::Duration::from_secs(2));
-    // window.emit("db_init_state", false).unwrap();
     window.emit("db_init_paths", num_paths).unwrap();
     Ok(num_paths)
-}
-
-async fn db_populate(path_var: String) -> Result<()> {
-    let paths = fs::read_dir(path_var.clone()).unwrap();
-    let conn = Connection::open("./.userData/Mp3data.db")?;
-    println!("From DB populate");
-    for path in paths {
-        // let tag = Tag::read_from_path(path.as_ref())?;
-        let file_name = path.as_ref().unwrap().file_name();
-        let path_value = path.as_ref().unwrap().path();
-        
-        //Dont send into DB until API request has been made, then send ALL data. After that, send result to frontend - if successfull - begin preview screen, else show error
-
-        let _ = conn.execute("INSERT INTO mp3_table_data (
-            file_name, 
-            path, 
-            title, 
-            artist, 
-            album, 
-            year, 
-            track, 
-            genre,
-            comment, 
-            album_artist, 
-            composer, 
-            discno, 
-            successfulFieldCalls,
-            successfulMechanismCalls,
-            successfulQueries,
-            totalFieldCalls,
-            totalMechanismCalls,
-            totalSuccessfulQueries,
-            album_art
-        ) VALUES (
-            ?1,
-            ?2,
-            NULL,
-            NULL,
-            NULL,
-            0,
-            0,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            NULL
-        )",(file_name.into_string().unwrap(), path_value.to_str().unwrap()));
-    }
-
-    println!("Process Completed @: {}", path_var);
-    Ok(())
 }
 
 // Old Tauri Functions
