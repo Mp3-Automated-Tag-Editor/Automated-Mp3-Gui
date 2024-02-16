@@ -12,9 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator";
-import { FaGithub } from "react-icons/fa";
-import { FaLinkedin } from "react-icons/fa";
-import { FaInstagram } from "react-icons/fa";
+import { Github, Linkedin, Instagram } from "lucide-react";
 
 interface TechCardProps {
   icon: string; // Assuming `icon` is a path to the image or an SVG
@@ -147,13 +145,13 @@ const Start = () => {
         {/* Social media tags at the bottom */}
         <div className="mt-4 flex flex-row justify-start items-start">
           <a href="#" className="text-blue-500 mr-2" target="_blank" rel="noopener noreferrer">
-          <FaInstagram />
+          <Instagram/>
           </a>
           <a href="#" className="text-blue-500 mr-2" target="_blank" rel="noopener noreferrer">
-          <FaLinkedin />
+          <Linkedin/>
           </a>
           <a href="#" className="text-blue-500" target="_blank" rel="noopener noreferrer">
-          <FaGithub />
+          <Github/>
           </a>
           {/* Add more social media icons as needed */}
         </div>
@@ -179,13 +177,13 @@ const Start = () => {
         {/* Social media tags at the bottom */}
         <div className="mt-4 flex flex-row justify-start items-start">
           <a href="#" className="text-blue-500 mr-2" target="_blank" rel="noopener noreferrer">
-          <FaInstagram />
+          <Instagram/>
           </a>
           <a href="#" className="text-blue-500 mr-2" target="_blank" rel="noopener noreferrer">
-           <FaLinkedin />
+           <Linkedin />
           </a>
           <a href="#" className="text-blue-500" target="_blank" rel="noopener noreferrer">
-            <FaGithub />
+            <Github />
           </a>
           {/* Add more social media icons as needed */}
         </div>
