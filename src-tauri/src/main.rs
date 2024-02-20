@@ -132,3 +132,107 @@ async fn long_job<R: Runtime>(window: tauri::Window<R>) {
         std::thread::sleep(std::time::Duration::from_secs(2));
     }
 }
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+
+    #[test]
+    fn test_add() {
+        assert_eq!(add(2, 3), 5);
+    }
+
+    #[test]
+    fn test_save_settings() {
+        let data = types::Settings { /* Initialize settings data for testing */ };
+        // Test saving settings
+        assert!(save_settings(data.clone()).is_ok());
+
+        // Verify the settings file content
+        let content = fs::read_to_string(json::get_settings_path()).unwrap();
+        let parsed_settings: types::Settings = serde_json::from_str(&content).unwrap();
+        assert_eq!(parsed_settings, data);
+    }
+
+    #[test]
+    fn test_check_directory() {
+        // Create a temporary directory and write a test file inside it
+        let temp_dir = tempfile::tempdir().unwrap();
+        let test_file_path = temp_dir.path().join("test.mp3");
+        let mut test_file = File::create(&test_file_path).unwrap();
+        test_file.write_all(b"test content").unwrap();
+
+        // Test checking directory
+        assert!(check_directory(temp_dir.path().to_str().unwrap().to_string()).unwrap());
+
+        // Clean up: remove the temporary directory
+        temp_dir.close().unwrap();
+    }
+
+    #[test]
+    fn test_save_settings() {
+        let data = types::Settings { /* Initialize settings data for testing */ };
+        // Test saving settings
+        assert!(save_settings(data.clone()).is_ok());
+
+        // Verify the settings file content
+        let content = fs::read_to_string(json::get_settings_path()).unwrap();
+        let parsed_settings: types::Settings = serde_json::from_str(&content).unwrap();
+        assert_eq!(parsed_settings, data);
+    }
+
+    #[test]
+    fn test_check_directory() {
+        // Create a temporary directory and write a test file inside it
+        let temp_dir = tempfile::tempdir().unwrap();
+        let test_file_path = temp_dir.path().join("test.mp3");
+        let mut test_file = File::create(&test_file_path).unwrap();
+        test_file.write_all(b"test content").unwrap();
+
+        // Test checking directory
+        assert!(check_directory(temp_dir.path().to_str().unwrap().to_string()).unwrap());
+
+        // Clean up: remove the temporary directory
+        temp_dir.close().unwrap();
+    }
+
+    // #[test]
+    // fn test_initialize_db() {
+    //     // Test with valid input
+    //     let window: tauri::Window = /* Initialize window */;
+    //     let path_var = /* Provide valid path */;
+    //     assert!(initialize_db(window.clone(), path_var.clone()).is_ok());
+
+    //     // Test with invalid input
+    //     assert!(initialize_db(window.clone(), "".to_string()).is_err());
+    // }
+
+    // #[test]
+    // fn test_get_settings_data() {
+    //     // Create a temporary settings file with known content
+    //     let temp_dir = tempfile::tempdir().unwrap();
+    //     let settings_path = temp_dir.path().join("settings.json");
+    //     let mut settings_file = File::create(&settings_path).unwrap();
+    //     let data = /* Initialize known settings data */;
+    //     let data_str = serde_json::to_string(&data).unwrap();
+    //     settings_file.write_all(data_str.as_bytes()).unwrap();
+
+    //     // Test getting settings data
+    //     assert_eq!(get_settings_data(), data);
+
+    //     // Clean up: remove the temporary settings file
+    //     temp_dir.close().unwrap();
+    // }
+
+    // #[test]
+    // fn test_long_job() {
+    //     // Test long job (no assertions, just ensure it runs without error)
+    //     let window: tauri::Window = /* Initialize window */;
+    //     long_job(window.clone());
+    // }
+}
+
