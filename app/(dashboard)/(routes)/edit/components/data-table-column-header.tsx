@@ -27,7 +27,7 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  
+
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>
   }
@@ -60,11 +60,12 @@ export function DataTableColumnHeader<TData, TValue>({
             <ArrowDownIcon className="mr-2 h-3.5 w-3.5" />
             Desc
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-            <EyeNoneIcon className="mr-2 h-3.5 w-3.5" />
-            Hide
-          </DropdownMenuItem>
+          {column.getCanHide() ? (<>
+            <DropdownMenuSeparator /><DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
+              <EyeNoneIcon className="mr-2 h-3.5 w-3.5" />
+              Hide
+            </DropdownMenuItem>
+          </>) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

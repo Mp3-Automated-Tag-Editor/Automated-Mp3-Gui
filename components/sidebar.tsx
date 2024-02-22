@@ -36,12 +36,6 @@ const routes = [
     href: '/edit',
   },
   {
-    label: 'Test',
-    icon: Pencil,
-    color: "text-orange-700",
-    href: '/edit2',
-  },
-  {
     label: 'Music Playstation',
     icon: Music,
     // color: "text-emerald-500",

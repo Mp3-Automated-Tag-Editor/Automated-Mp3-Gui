@@ -25,13 +25,6 @@ export const tools = [
     bgColor: "bg-orange-700/10",
   },
   {
-    label: 'Test',
-    icon: Pencil,
-    color: "text-orange-700",
-    href: '/edit2',
-    bgColor: "bg-orange-700/10",
-  },
-  {
     label: 'Music Playstation',
     icon: Music,
     color: "text-green-700",

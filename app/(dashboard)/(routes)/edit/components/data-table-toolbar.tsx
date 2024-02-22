@@ -5,9 +5,9 @@ import { Table } from "@tanstack/react-table"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DataTableViewOptions } from "@/app/(dashboard)/(routes)/edit2/components/data-table-view-options"
+import { DataTableViewOptions } from "@/app/(dashboard)/(routes)/edit/components/data-table-view-options"
 
-import { priorities, statuses } from "../data/data"
+import { genres, statuses } from "../data/data"
 import { DataTableFacetedFilter } from "./data-table-faceted-filter"
 
 interface DataTableToolbarProps<TData> {
@@ -23,13 +23,29 @@ export function DataTableToolbar<TData>({
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
-          placeholder="Filter tasks..."
-          value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
+          placeholder="Search Songs"
+          value={((table.getColumn("title")?.getFilterValue() as string) || (table.getColumn("id")?.getFilterValue() as string)) ?? ""}
+          onChange={(event) => {
+            //TODO - table search for songs + artists 
             table.getColumn("title")?.setFilterValue(event.target.value)
+          }
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
+        {/* {table.getColumn("artist") && (
+          <DataTableFacetedFilter
+            column={table.getColumn("id")}
+            title="Id"
+            options={} // Find a Way to create a dynamic Object based on obtained data
+          />
+        )}
+        {table.getColumn("album") && (
+          <DataTableFacetedFilter
+            column={table.getColumn("id")}
+            title="Id"
+            options={} // Find a Way to create a dynamic Object based on obtained data
+          />
+        )} */}
         {table.getColumn("status") && (
           <DataTableFacetedFilter
             column={table.getColumn("status")}
@@ -37,11 +53,11 @@ export function DataTableToolbar<TData>({
             options={statuses}
           />
         )}
-        {table.getColumn("priority") && (
+        {table.getColumn("genre") && (
           <DataTableFacetedFilter
-            column={table.getColumn("priority")}
-            title="Priority"
-            options={priorities}
+            column={table.getColumn("genre")}
+            title="Genre"
+            options={genres}
           />
         )}
         {isFiltered && (
