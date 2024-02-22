@@ -11,6 +11,8 @@ A Tauri and Next.js based Desktop Application as a one stop solution to all your
 
 ![mp3_2](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/faa0e671-4a91-469f-9355-bf33cfdee21f)
 
+![image](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/2467301c-57c0-422a-90d5-b487b2cc0ff2)
+
 ![WhatsApp Image 2024-01-09 at 00 24 50](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/91d15bad-e3cc-4dd7-8754-6916c8b7b78a)
 
 ![mp3_3](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/d7c0ae27-febb-4cf5-b08f-a54b89ffc9ba)
