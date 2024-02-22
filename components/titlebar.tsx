@@ -9,7 +9,7 @@ import { Maximize, Minimize, Minus, Square, X } from 'lucide-react';
 
 export default function TitleBar(
     {
-        titleBar = "Automated Mp3 Tag Editor - v1.0"
+        titleBar = "Automated Mp3 Tag Editor - v1.3"
     }: {
         titleBar: string;
     }
@@ -38,7 +38,7 @@ export default function TitleBar(
         <>
             <div data-tauri-drag-region className='titlebar'>
                 {/* <Image width={30} height={30} alt="Mp3" src="./logo.png" /> */}
-                <div data-tauri-drag-region className="title">
+                <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '16px', fontWeight: 'bold' }} data-tauri-drag-region className="title">
                     {titleBar}
                 </div>
                 <ModeToggle />

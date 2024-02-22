@@ -35,7 +35,7 @@ import { Pencil } from "lucide-react";
 //   discno: 1,
 // }
 interface Song {
-  name: string;
+  fileName: string;
   artist: string;
   title: string;
   album: string;
@@ -45,6 +45,8 @@ interface Song {
   composer: string;
   discno: number;
   comments: string;
+  imageSrc: string;
+  albumArtist: string;
   // Add other properties if needed
 }
 
@@ -54,7 +56,7 @@ function Edit() {
   const [isClicked, setClicked] = useState(false);
   const [isEditing, setEditing] = useState(true);
   const [songDetails, setSongDetails] = useState<Song>({
-    name: '',
+    fileName: '',
     artist: '',
     title: '',
     album: '',
@@ -63,7 +65,9 @@ function Edit() {
     genre: '',
     composer: '',
     discno: 0,
-    comments: ""
+    comments: "",
+    albumArtist: '',
+    imageSrc: ""
   });
   const handleSelect = (item: Song) => {
     console.log("item", item);
@@ -112,10 +116,10 @@ function Edit() {
                 md:px-6 
                 focus-within:shadow-sm">
             <Table>
-              <TableCaption> List of songs .</TableCaption>
+              <TableCaption>Caption</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]" >File Name</TableHead>
+                  <TableHead>&gt;</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Artist</TableHead>
                   <TableHead>Album</TableHead>
@@ -123,6 +127,8 @@ function Edit() {
                   <TableHead>Track</TableHead>
                   <TableHead>Genre</TableHead>
                   <TableHead>Composer</TableHead>
+                  <TableHead>Album Artist</TableHead>
+                  <TableHead>Disc Number</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -133,7 +139,7 @@ function Edit() {
                     <TableCell className="font-medium">
                       <Sheet>
                         <SheetTrigger asChild>
-                          <button key={index} onClick={() => { handleSelect(item) }}>{item.name}</button>
+                          <button key={index} onClick={() => { handleSelect(item) }}>&gt;</button>
                         </SheetTrigger>
                         <SheetContent>
                           <Tabs defaultValue="edit">
@@ -233,6 +239,8 @@ function Edit() {
                     <TableCell>{item.track}</TableCell>
                     <TableCell>{item.genre}</TableCell>
                     <TableCell>{item.composer}</TableCell>
+                    <TableCell>{item.albumArtist}</TableCell>
+                    <TableCell>{item.discno}</TableCell>
 
                   </TableRow>
 
@@ -240,8 +248,8 @@ function Edit() {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={7}>Completion Percentage</TableCell>
-                  <TableCell >95.3</TableCell>
+                  <TableCell colSpan={9}>Completion Percentage</TableCell>
+                  <TableCell colSpan={1}>95.3</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
