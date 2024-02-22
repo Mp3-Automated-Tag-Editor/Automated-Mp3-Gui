@@ -27,7 +27,7 @@ export default function RootLayout({
 }
 
   return (
-    <html lang="en" className='scroll-smooth' style={{scrollBehavior:'smooth'}}>
+    <html lang="en" className='scroll-smooth' style={{scrollBehavior:'smooth', scrollMarginTop: "14px", scrollbarColor: "green"}}>
       {/* <TitleBar titleText={""}/> */}
       <ThemeProvider
         attribute="class"
@@ -35,9 +35,10 @@ export default function RootLayout({
         enableSystem
         disableTransitionOnChange
       >
-        <TitleBar titleBar='Automated Mp3 Tag Editor - v1.0' />
+        <TitleBar titleBar='Automated Mp3 Tag Editor - v1.3' />
         <ConfigsProvider defaultData={defaultData}>
 
+          {/* <body style={{ backgroundColor: "blue", height: "240px" }} className={inter.className}> */}
           <body className={inter.className}>
             {children}
           </body>

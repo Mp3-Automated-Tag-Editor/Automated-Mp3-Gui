@@ -9,10 +9,10 @@ export function SongItem({ path, status, percentage, id }: { path: string, statu
                 : <span style={{ color: 'rgb(22, 163, 74)' }}>Done</span>}</p>
             {!status ? <p className="line5">Percentage Accuracy: <span style={
                 {
-                    color: percentage >= 80 ? 'rgb(22, 163, 74)' :
-                        percentage >= 60 && percentage < 80 ? 'yellow' :
-                            percentage >= 40 && percentage < 60 ? 'orange' :
-                                percentage < 40 ? 'red' : '#fff'
+                    color: percentage >= 70 ? 'rgb(22, 163, 74)' :
+                        percentage >= 50 && percentage < 70 ? 'yellow' :
+                            percentage >= 30 && percentage < 50 ? 'orange' :
+                                percentage < 30 ? 'red' : '#fff'
                 }
             }>{percentage}%</span></p>
                 : null}
