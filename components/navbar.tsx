@@ -15,7 +15,7 @@ const Navbar = () => {
     <div className="flex items-center py-3">
       {/* <MobileSidebar isPro={isPro} apiLimitCount={apiLimitCount} /> */}
       <MobileSidebar />
-      <div className="flex w-full justify-end mt-6">
+      <div className="flex w-full justify-end mt-4">
         <AvatarCircle />
       </div>
     </div>

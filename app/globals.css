@@ -165,7 +165,8 @@ body,
 .screen {
   width: 100%;
   height: 100%;
-  background: #f2f2f2;
+  background-image: url("../public/Screenshot_2024-02-23-22-02-16-06_b46165218337619b1d67d6de861086f0.jpg");
+  background-size: cover;
   border-radius: 30px;
   overflow-y: auto;
 }

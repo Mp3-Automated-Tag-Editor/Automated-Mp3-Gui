@@ -18,11 +18,10 @@ const DashboardLayout = async ({
       <div className="relative hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-80 bg-gray-900 z-10">
         <Sidebar />
       </div>
-      <Navbar />
-      <main className="md:pl-72 py-5">
+      {/* <Navbar /> */}
+      <main className="md:pl-72 py-12">
         {children}
       </main>
-      Hello
     </>
     // </div>
   );

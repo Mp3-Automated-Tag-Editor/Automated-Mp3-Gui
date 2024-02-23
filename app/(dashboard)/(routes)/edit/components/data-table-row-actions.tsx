@@ -63,108 +63,97 @@ export function DataTableRowActions<TData>({
             <span className="sr-only">Open menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent>
+        <SheetContent className="overflow-auto p-4">
           <Tabs defaultValue="edit">
             <TabsList>
               <TabsTrigger value="edit">Edit</TabsTrigger>
               <TabsTrigger value="view">View</TabsTrigger>
-              <TabsTrigger value="others">Other Options</TabsTrigger>
+              <TabsTrigger value="others">Options</TabsTrigger>
             </TabsList>
-            <TabsContent value="edit">
-              <ScrollArea className="h-svh w-[100%] rounded-md border p-4">
-                <SheetHeader>
-                  <SheetTitle>
-                    Edit Song Metadata
-                  </SheetTitle>
-                  <SheetDescription>
-                    Make changes to song metadata manually.
+            <TabsContent value="edit" className="rounded-md border p-4">
+              <SheetHeader>
+                <SheetTitle>
+                  Edit Song Metadata
+                </SheetTitle>
+                <SheetDescription>
+                  Make changes to song metadata manually.
 
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="title" className="text-right">
-                          Title
-                        </Label>
-                        <Input id="name" value={songDetails.title} name="title" className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="artist" className="text-right">
-                          Artist
-                        </Label>
-                        <Input id="username" name="artist" value={songDetails.artist} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="album" className="text-right">
-                          Album
-                        </Label>
-                        <Input id="username" name="album" value={songDetails.album} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="year" className="text-right">
-                          Year
-                        </Label>
-                        <Input id="username" name="year" value={songDetails.year} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4">
-                        <Label htmlFor="album" className="text-right col-span-0.5">
-                          Track
-                        </Label>
-                        <Input id="username" name="track" value={songDetails.track} className="col-span-0.5" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 col-span-0.5">
-                        <Label htmlFor="genre" className="text-right">
-                          Disc No.
-                        </Label>
-                        <Input id="username" name="discno" value={songDetails.discno} className="col-span-1" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="genre" className="text-right">
-                          Genre
-                        </Label>
-                        <Input id="username" name="genre" value={songDetails.genre} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="genre" className="text-right">
-                          Comments
-                        </Label>
-                        <Textarea id="username" name="comments" value={songDetails.comments} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                      </div>
-                      <Image
-                        src={songDetails.imageSrc}
-                        width={300}
-                        height={300}
-                        alt="Picture of the author"
-                        className="border border-black"
-                      />
-                      <Button type="submit">Save changes</Button>
-
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="title" className="text-right">
+                        Title
+                      </Label>
+                      <Input id="name" value={songDetails.title} name="title" className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="artist" className="text-right">
+                        Artist
+                      </Label>
+                      <Input id="username" name="artist" value={songDetails.artist} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="album" className="text-right">
+                        Album
+                      </Label>
+                      <Input id="username" name="album" value={songDetails.album} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="year" className="text-right">
+                        Year
+                      </Label>
+                      <Input id="username" name="year" value={songDetails.year} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="album" className="text-right">
+                        Track
+                      </Label>
+                      <Input id="username" name="track" value={songDetails.track} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="genre" className="text-right">
+                        Disc No.
+                      </Label>
+                      <Input id="username" name="discno" value={songDetails.discno} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="genre" className="text-right">
+                        Genre
+                      </Label>
+                      <Input id="username" name="genre" value={songDetails.genre} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
                     </div>
 
-                  </SheetDescription>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="genre" className="text-right">
+                        Comments
+                      </Label>
+                      <Textarea id="username" name="comments" value={songDetails.comments} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                    </div>
+                    <Image
+                      src={songDetails.imageSrc}
+                      width={300}
+                      height={300}
+                      alt="Picture of the author"
+                      className="border border-black"
+                    />
+                    <Button type="submit">Save changes</Button>
 
-                </SheetHeader>
+                  </div>
 
+                </SheetDescription>
 
-                <SheetFooter>
-                  <SheetClose>
-                    {/* <Button type="submit" onClick={}>Save changes</Button> */}
-                  </SheetClose>
-                </SheetFooter>
-              </ScrollArea>
+              </SheetHeader>
             </TabsContent>
 
-            <TabsContent value="view">
-              <>
-                <SheetHeader>
-                  <SheetTitle>View Song Details</SheetTitle>
-                  <SheetDescription>
-                    View Song Details
-                  </SheetDescription>
-                  <div>
-                    <Phone currentSong={songDetails} />
-                  </div>
-                </SheetHeader>
-              </>
+            <TabsContent value="view" className="rounded-md border p-4">
+              <SheetHeader>
+                <SheetTitle>
+                  View Song
+                </SheetTitle>
+                <SheetDescription>
+                  A Mobile View of your metadata.
+                </SheetDescription>
+              </SheetHeader>
+              <Phone currentSong={songDetails} />
             </TabsContent>
 
             <TabsContent value="Others">

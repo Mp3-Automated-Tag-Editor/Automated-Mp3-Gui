@@ -36,7 +36,7 @@ export default function TitleBar(
     }
     return (
         <>
-            <div data-tauri-drag-region className='titlebar'>
+            <div className='titlebar'>
                 {/* <Image width={30} height={30} alt="Mp3" src="./logo.png" /> */}
                 <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '16px', fontWeight: 'bold' }} data-tauri-drag-region className="title">
                     {titleBar}
