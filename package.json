@@ -1,6 +1,6 @@
 {
   "name": "mp3-app",
-  "version": "1.9.0",
+  "version": "1.9.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
