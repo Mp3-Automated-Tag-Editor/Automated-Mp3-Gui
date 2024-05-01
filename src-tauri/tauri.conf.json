@@ -11,7 +11,7 @@
   },
   "package": {
     "productName": "auto-mp3",
-    "version": "1.3.0"
+    "version": "1.9.2"
   },
   "tauri": {
     "allowlist": {
