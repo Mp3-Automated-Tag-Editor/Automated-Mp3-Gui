@@ -9,12 +9,35 @@ pub struct Settings {
     developer_settings: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Network_Details {
+    network_latency: i32,
+    network_speed: i32,
+    is_network_on: bool
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Server_Health {
+    status: i32,
+    message: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Window_Emit<'a>  {
     pub id: u32,
     pub state: bool,
     pub data: &'a str,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Error_Emit<'a>  {
+    pub errorCode: u32,
+    pub errorMessage: &'a str,
+    pub id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

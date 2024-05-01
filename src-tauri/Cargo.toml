@@ -29,6 +29,8 @@ r2d2 = "0.8.0"
 r2d2_sqlite = "0.21.0"
 audiotags = "0.4.1"
 id3 = "1.9.0"
+env_logger = "0.11.3"
+log = "0.4.21"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

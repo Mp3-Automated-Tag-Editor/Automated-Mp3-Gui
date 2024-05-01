@@ -5,7 +5,6 @@ import { Heading } from "@/components/heading";
 
 import { z } from "zod"
 
-import tasksData from './data/tasks.json';
 import songDate from './data/song.json'
 
 

@@ -19,3 +19,11 @@ export function SongItem({ path, status, percentage, id }: { path: string, statu
         </div>
     );
 }
+
+export function ErrorItem({ code, message }: { code: number, message: string }) {
+    return (
+        <div>
+            <p className="line5">[&gt;] <span style={{ color: 'rgb(251, 146, 60)' }}>Error: </span> {message} with code {code}</p>
+        </div>
+    );
+}

@@ -2,6 +2,8 @@ use std::fs;
 use std::path::Path;
 use rusqlite::{Connection, Result};
 
+use log::info;
+
 // Check if a database file exists, and create one if it does not.
 pub fn init() {
     if !db_file_exists() {
@@ -41,7 +43,7 @@ fn create_db_file() -> Result<()> {
         (), 
     );
 
-    println!("Created Table Successfully");
+    info!("Created Table Successfully");
     Ok(())
 }
 

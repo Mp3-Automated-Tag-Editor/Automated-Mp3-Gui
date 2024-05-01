@@ -1,12 +1,13 @@
+use log::{error, info};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use reqwest;
-use rusqlite::{params};
+use rusqlite::params;
 use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use tauri::{Runtime};
+use tauri::Runtime;
 
 /*
 TODO:
@@ -16,7 +17,7 @@ TODO:
 - Scrape Summary - emit function, then display summary componenets.
 */
 
-use crate::types::ApiResponse;
+use crate::types::{ApiResponse, Error_Emit};
 use crate::types::Window_Emit;
 
 fn make_api_call<R: Runtime>(
@@ -29,7 +30,24 @@ fn make_api_call<R: Runtime>(
 ) {
     // Perform a GET request using reqwest
 
-    let req_url = env::var("DEV_API_ENDPOINT").unwrap().to_string() + endpoint;
+    // let req_url = env::var("DEV_API_ENDPOINT").unwrap().to_string() + endpoint;
+    let req_url = match env::var("DEV_API_ENDPOINT") {
+        Ok(val) => val + endpoint,
+        Err(e) => {
+            error!("Error: DEV_API_ENDPOINT environment variable not set.");
+            window
+                .emit(
+                    "error_env",
+                    Error_Emit {
+                        errorCode: 504,
+                        errorMessage: "Error: DEV_API_ENDPOINT environment variable not set.",
+                        id: id
+                    },
+                )
+                .unwrap();
+            return;
+        }
+    };
 
     window
         .emit(
@@ -55,11 +73,7 @@ fn make_api_call<R: Runtime>(
         Ok(response) => {
             if response.status().is_success() {
                 // Process the response if needed
-                println!(
-                    "Successful response from {}, thread {}",
-                    endpoint,
-                    i
-                );
+                info!("Successful response from {}, thread {}", endpoint, i);
 
                 let api_response: ApiResponse =
                     serde_json::from_str(response.text().unwrap().as_str())
@@ -107,9 +121,9 @@ fn make_api_call<R: Runtime>(
                                     path
                                 ])
                     .expect("Error Inserting data");
-                println!("Inserted data into the database");
+                info!("Inserted data into the database");
             } else {
-                println!(
+                error!(
                     "Unsuccessful response from {}, thread {}: {:?}",
                     endpoint, i, response
                 );
@@ -126,7 +140,7 @@ fn make_api_call<R: Runtime>(
                 .unwrap();
         }
         Err(err) => {
-            println!(
+            error!(
                 "Error making request to {}, thread{}: {:?}",
                 endpoint, i, err
             );

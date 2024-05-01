@@ -1,7 +1,7 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { open } from '@tauri-apps/api/dialog'
+import { message, open } from '@tauri-apps/api/dialog'
 
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,11 @@ import { array, boolean, number, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
-import { SongItem } from "@/components/terminal-items";
+import { ErrorItem, SongItem } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const store = new Store(".settings.dat");
-
-interface WindowEmit {
-  state: boolean,
-  numPaths: number
-}
 
 const Start = () => {
   const [directory, setDirectory] = useState<any>();
@@ -47,6 +42,7 @@ const Start = () => {
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
+  const [serverHealth, setServerHealth] = useState<ServerHealth>({ message: "Unable to Connect to the Server. Please Try again later.", status: 404 });
 
   // Store initially loaded components
   const [components, setComponents] = useState<any>([]);
@@ -73,6 +69,21 @@ const Start = () => {
         setProgress(hashmap.size);
       });
     }
+
+    async function listenErrorDetails() {
+      let unListen3: UnlistenFn = await listen('error_env', (event) => {
+        const error: WindowEmit = JSON.parse(JSON.stringify(event.payload)) as WindowEmit;
+        console.log(error.errorMessage)
+        console.log(event.payload)
+
+        error.isError = true;
+        hashmap.set(error.id, error);
+        setHashmap(new Map(hashmap));
+        setProgress(hashmap.size);
+      });
+    }
+
+    listenErrorDetails();
     listenProgressDetails();
     confirmProgressDetails();
   }, []);
@@ -80,9 +91,9 @@ const Start = () => {
   // Example: Updating the Map
 
   // Effect to log the Map values whenever it changes
-  useEffect(() => {
-    console.log('Map values:', hashmap);
-  }, [hashmap]);
+  // useEffect(() => {
+  //   console.log('Map values:', hashmap);
+  // }, [hashmap]);
 
   useEffect(() => {
     async function listenDbInitialization() {
@@ -105,7 +116,22 @@ const Start = () => {
   interface WindowEmit {
     id: number,
     state: boolean,
-    data: string
+    data: string,
+
+    isError: boolean,
+    errorCode: number,
+    errorMessage: string
+  }
+
+  interface NetworkDetails {
+    isNetworkOn: boolean,
+    networkLatency: number,
+    networkSpeed: number
+  }
+
+  interface ServerHealth {
+    status: number,
+    message: string
   }
 
   const ScrollDown = (ref: any) => {
@@ -115,6 +141,22 @@ const Start = () => {
       behavior: "smooth",
     });
   };
+
+  async function getServerHealth() {
+    try {
+      var msg = await invoke('get_server_health') as ServerHealth
+      console.log(msg)
+      if (msg.status == 200) {
+        setServerHealth(msg)
+      } else {
+        msg.status = 404
+        msg.message = "Unable to Connect to Server, exiting process."
+        setServerHealth(msg)
+      } 
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   async function startSearch() {
     if (!directory) {
@@ -131,6 +173,8 @@ const Start = () => {
       })
       setError(false);
 
+      await getServerHealth();
+
       setLoading({ state: true, msg: "Loading your Database..." });
       const val: number = await invoke('initialize_db', { path_var: directory });
       setNumFiles(val);
@@ -141,7 +185,18 @@ const Start = () => {
       setTimeout(() => {
         ScrollDown(consoleRef.current);
       }, 2000);
-      const elapsedTime = await invoke('start_scrape_process',  { pathVar: directory });
+
+      // Preliminary Checks
+      if (serverHealth?.status != 200) {
+        setErrorDetails({
+          title: "Error Code: "+serverHealth?.status,
+          data: "" + serverHealth?.message
+        })
+        setError(true);
+        return
+      }
+
+      const elapsedTime = await invoke('start_scrape_process', { pathVar: directory });
       console.log(elapsedTime);
     };
   }
@@ -186,6 +241,33 @@ const Start = () => {
       console.log(error);
     }
   }
+
+  // async function getNetworkDetails() {
+  //   try {
+  //     var msg = await invoke('check_directory', { var: selectedPath })
+  //     .then((message) => {
+  //       return message;
+  //     })
+  //     .catch((error) => console.error(error));
+  //   return msg;
+
+  //     if (await checkIfDirectoryContainsMusic(selectedPath) === false) {
+  //       setErrorDetails({
+  //         title: "Invalid Directory!",
+  //         data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped."
+  //       })
+  //       setError(true);
+  //       setDirectory("");
+  //       return;
+  //     } else return;
+
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // }
+
+  
+
 
   return (
     <div>
@@ -292,20 +374,29 @@ const Start = () => {
             ">
               <Progress indicatorColor="bg-black" value={progress * 100 / numFiles} className="w-full" />
               {/*Make a loading component that renders each time, and push to array only after confirmation is sent from backend*/}
-              <div className="fakeScreen overflow-y-scroll">
+              <div className="fakeScreen">
+
                 <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
                 <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
                 <p className="line3">[&gt;] Chosen Directory: {directory}</p>
                 <p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
+                <p className="line3">[&gt;] Checking Network: </p>
+                <p className="line3">[&gt;] Network Speed: </p>
+                <p className="line3">[&gt;] Network Latency: </p>
+                <p className="line3">[&gt;] Server Health: {serverHealth?.message}</p>
                 <p className="line2">Initialization Complete, Listening for events...</p>
                 <Separator className="my-2" />
                 {
                   [...hashmap].map((entry) => {
                     let key = entry[0];
                     let value = entry[1];
-                    return (
+                    if (value.isError) return (
+                      <ErrorItem key={value.id} message={value.errorMessage} code={value.errorCode} />
+                    )
+                    else return (
                       <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
                     )
+
                   })
                   // Array.from(hashmap.entries()).map(([key, value]) => (
                   //   <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
