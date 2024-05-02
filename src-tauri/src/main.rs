@@ -7,6 +7,8 @@ use std::env;
 use std::fs;
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::{Read, Write};
+use std::process::Command;
+use std::time::{Duration, Instant};
 use tauri::{Manager, Runtime, Window};
 
 mod db;
@@ -35,6 +37,7 @@ fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            get_network_data,
             get_server_health,
             start_scrape_process,
             get_settings_data,
@@ -171,10 +174,37 @@ fn get_settings_data() -> types::Settings {
     parsed_json
 }
 
-// #[tauri::command]
-// fn get_network_data() -> types::Network_Details {
+#[tauri::command]
+async fn get_network_data() -> Result<types::Network_Details, String> {
+    let check_url = "https://www.google.com/";
+    let req_url = format!(
+        "{}{}",
+        env::var("HEALTH_ENDPOINT").expect("Env Not set"),
+        "health"
+    );
+    // Check if connected to a network
+    let if_connected = reqwest::get(check_url).await.is_ok();
 
-// }
+    debug!("{:?}", if_connected);
+
+    if !if_connected {
+        return Ok(types::Network_Details {
+            if_connected: false,
+            speed: 0,
+            latency: 0,
+        });
+    }
+
+    let start_time = Instant::now();
+    let _ = reqwest::get(req_url).await.is_ok();
+    let elapsed_time = start_time.elapsed();
+
+    Ok(types::Network_Details {
+        if_connected: true,
+        speed: 0,
+        latency: elapsed_time.as_millis() as u32,
+    })
+}
 
 #[tauri::command]
 async fn get_server_health() -> Result<types::Server_Health, String> {

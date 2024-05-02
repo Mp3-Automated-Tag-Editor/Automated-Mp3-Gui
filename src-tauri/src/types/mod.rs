@@ -12,9 +12,9 @@ pub struct Settings {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Network_Details {
-    network_latency: i32,
-    network_speed: i32,
-    is_network_on: bool
+    pub if_connected: bool,
+    pub speed:u32,
+    pub latency: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

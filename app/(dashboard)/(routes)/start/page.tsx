@@ -27,7 +27,7 @@ import { array, boolean, number, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
-import { ErrorItem, SongItem } from "@/components/terminal-items";
+import { CheckItem, ErrorItem, SongItem } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -43,11 +43,10 @@ const Start = () => {
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
   const [serverHealth, setServerHealth] = useState<ServerHealth>({ message: "Unable to Connect to the Server. Please Try again later.", status: 404 });
-
-  // Store initially loaded components
-  const [components, setComponents] = useState<any>([]);
+  const [initializeSuccess, setInitializeSuccess] = useState<boolean>(false);
 
   //Terminus 
+  const [checks, setChecks] = useState<Map<Number, Initialization>>(new Map());
   const [hashmap, setHashmap] = useState<Map<Number, WindowEmit>>(new Map());
 
   const consoleRef = useRef(null);
@@ -123,10 +122,18 @@ const Start = () => {
     errorMessage: string
   }
 
+  interface Initialization {
+    id: number,
+    lineType: number,
+    message: string,
+    messageOptional: string,
+    result: boolean
+  }
+
   interface NetworkDetails {
-    isNetworkOn: boolean,
-    networkLatency: number,
-    networkSpeed: number
+    ifConnected: boolean,
+    latency: number,
+    speed: number
   }
 
   interface ServerHealth {
@@ -145,17 +152,28 @@ const Start = () => {
   async function getServerHealth() {
     try {
       var msg = await invoke('get_server_health') as ServerHealth
-      console.log(msg)
       if (msg.status == 200) {
-        setServerHealth(msg)
+        return(msg)
       } else {
-        msg.status = 404
-        msg.message = "Unable to Connect to Server, exiting process."
-        setServerHealth(msg)
-      } 
+        return({status: 404, message: "Unable to Connect to Server, exiting process."} as ServerHealth)
+      }
     } catch (error) {
       console.log(error);
     }
+  }
+
+  async function getNetworkDetails() {
+    try {
+      var msg = await invoke('get_network_data') as NetworkDetails
+      console.log(msg)
+      return msg;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async function startSearch() {
@@ -166,14 +184,32 @@ const Start = () => {
       })
       setError(true);
       return;
-    } else {
+    }
+    else {
       setErrorDetails({
         title: "",
         data: ""
       })
       setError(false);
 
-      await getServerHealth();
+      /**
+List of Checks:
+- Search if directory (done before hand)
+- Search for thread number
+(These 2 will be added automatically)
+- Network Details
+  - If Network is Up
+  - Network Latency
+  - Speed
+- Server Health
+
+- Stopping Process (in case of failure) + Starting Process (in case all checks are passed)
+
+On Stopping Process - Pop up with error + button at bottom of terminal to retry/go back
+
+On Check for each, add it to the hashmap and force re-render of checks. 
+If network check fails
+ */
 
       setLoading({ state: true, msg: "Loading your Database..." });
       const val: number = await invoke('initialize_db', { path_var: directory });
@@ -186,16 +222,82 @@ const Start = () => {
         ScrollDown(consoleRef.current);
       }, 2000);
 
-      // Preliminary Checks
-      if (serverHealth?.status != 200) {
+      // Initial initialization, directory and threads
+      var counter = 0;
+      checks.set(counter, { id: counter, message: "Welcome to the Automated Mp3 Tag Editor.", lineType: 2, messageOptional: " Initializing Scraper...", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+
+      await sleep(3500)
+      counter++
+      checks.set(counter, { id: counter, message: "Chosen Directory: ", lineType: 3, messageOptional: directory, result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+      await sleep(1000)
+      counter++
+      checks.set(counter, { id: counter, message: "Number of Threads: ", lineType: 3, messageOptional: settingsData.threads, result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+      const networkDetails = await getNetworkDetails();
+      const serverHealth = await getServerHealth();
+      await sleep(1000)
+      counter++
+      if (!networkDetails?.ifConnected) {
+        checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Failed", result: false } as Initialization);
+        setHashmap(new Map(hashmap));
+
+        await sleep(1000)
+        counter++
+        checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
+        setHashmap(new Map(hashmap));
+
         setErrorDetails({
-          title: "Error Code: "+serverHealth?.status,
+          title: "Error Code: " + serverHealth?.status,
           data: "" + serverHealth?.message
         })
         setError(true);
         return
       }
+      checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Connected", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
 
+      await sleep(1000)
+      counter++
+      console.log(serverHealth)
+      if (serverHealth?.status != 200) {
+        checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth?.message, result: false } as Initialization);
+        setHashmap(new Map(hashmap));
+
+        await sleep(1000)
+        counter++
+        checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
+        setHashmap(new Map(hashmap));
+
+        setErrorDetails({
+          title: "Error Code: " + serverHealth?.status,
+          data: "" + serverHealth?.message
+        })
+        setError(true);
+        return
+      }
+      checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth.message, result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+      await sleep(1000)
+      counter++
+      var latency = networkDetails?.latency as unknown as String
+      checks.set(counter, { id: counter, message: "Server Latency:  ", lineType: 3, messageOptional: latency + " ms", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+      await sleep(1000)
+      counter++
+      checks.set(counter, { id: counter, message: "Initialization Complete, Listening for events... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+
+      await sleep(1000)
+      setInitializeSuccess(true)
+
+      await sleep(3500)
       const elapsedTime = await invoke('start_scrape_process', { pathVar: directory });
       console.log(elapsedTime);
     };
@@ -241,33 +343,6 @@ const Start = () => {
       console.log(error);
     }
   }
-
-  // async function getNetworkDetails() {
-  //   try {
-  //     var msg = await invoke('check_directory', { var: selectedPath })
-  //     .then((message) => {
-  //       return message;
-  //     })
-  //     .catch((error) => console.error(error));
-  //   return msg;
-
-  //     if (await checkIfDirectoryContainsMusic(selectedPath) === false) {
-  //       setErrorDetails({
-  //         title: "Invalid Directory!",
-  //         data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped."
-  //       })
-  //       setError(true);
-  //       setDirectory("");
-  //       return;
-  //     } else return;
-
-  //   } catch (error) {
-  //     console.log(error);
-  //   }
-  // }
-
-  
-
 
   return (
     <div>
@@ -355,8 +430,6 @@ const Start = () => {
                   </SheetContent>
                 </Sheet>
 
-
-
                 <Button onClick={() => { startSearch() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
                   Start
                 </Button>
@@ -377,15 +450,24 @@ const Start = () => {
               <div className="fakeScreen">
 
                 <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
-                <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
+
+
+                {/* <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
                 <p className="line3">[&gt;] Chosen Directory: {directory}</p>
                 <p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
                 <p className="line3">[&gt;] Checking Network: </p>
                 <p className="line3">[&gt;] Network Speed: </p>
                 <p className="line3">[&gt;] Network Latency: </p>
                 <p className="line3">[&gt;] Server Health: {serverHealth?.message}</p>
-                <p className="line2">Initialization Complete, Listening for events...</p>
-                <Separator className="my-2" />
+                <p className="line2">Initialization Complete, Listening for events...</p> */}
+                {
+                  [...checks].map((entry) => {
+                    let key = entry[0];
+                    let value = entry[1];
+                    return <CheckItem key={value.id} message={value.message} lineType={value.lineType} messageOptional={value.messageOptional} result={value.result} />
+                  })
+                }
+                {initializeSuccess ? <Separator className="my-2" /> : null}
                 {
                   [...hashmap].map((entry) => {
                     let key = entry[0];
@@ -396,11 +478,7 @@ const Start = () => {
                     else return (
                       <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
                     )
-
                   })
-                  // Array.from(hashmap.entries()).map(([key, value]) => (
-                  //   <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
-                  // ))
                 }
                 <p className="line4">&gt;<span className="cursor4">_</span></p>
                 <div id="snap"></div>

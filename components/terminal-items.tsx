@@ -27,3 +27,22 @@ export function ErrorItem({ code, message }: { code: number, message: string }) 
         </div>
     );
 }
+
+export function CheckItem({ lineType, message, messageOptional, result }: { lineType: number, message: string, messageOptional:string, result: boolean }) {
+    return (
+        <div>
+            <p className={"line"+lineType}>{lineType == 3 ? <span>[&gt;]</span> : null} {message} <span style={result ? { color: 'rgb(205, 238, 105)' } : { color: 'rgb(222, 75, 75)' }}>{messageOptional}</span></p>
+        </div>
+    );
+}
+
+{/* 
+<p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
+<p className="line3">[&gt;] Chosen Directory: {directory}</p>
+<p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
+<p className="line3">[&gt;] Checking Network: </p>
+<p className="line3">[&gt;] Network Speed: </p>
+<p className="line3">[&gt;] Network Latency: </p>
+<p className="line3">[&gt;] Server Health: {serverHealth?.message}</p>
+<p className="line2">Initialization Complete, Listening for events...</p>
+*/}
