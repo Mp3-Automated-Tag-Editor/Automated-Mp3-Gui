@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::Runtime;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /*
 TODO:
@@ -17,8 +18,18 @@ TODO:
 - Scrape Summary - emit function, then display summary componenets.
 */
 
-use crate::types::{ApiResponse, Error_Emit};
 use crate::types::Window_Emit;
+use crate::types::{ApiResponse, Error_Emit};
+
+static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
+
+pub fn stop_execution() {
+    SHOULD_STOP.store(true, Ordering::Relaxed);
+}
+
+pub fn prepare_execution() {
+    SHOULD_STOP.store(false, Ordering::Relaxed);
+}
 
 fn make_api_call<R: Runtime>(
     window: &tauri::Window<R>,
@@ -41,7 +52,7 @@ fn make_api_call<R: Runtime>(
                     Error_Emit {
                         errorCode: 504,
                         errorMessage: "Error: DEV_API_ENDPOINT environment variable not set.",
-                        id: id
+                        id: id,
                     },
                 )
                 .unwrap();
@@ -69,15 +80,32 @@ fn make_api_call<R: Runtime>(
         .get()
         .expect("Failed to get database connection");
 
+    info!("Request from {}, thread {}", endpoint, i);
     match reqwest::blocking::get(req_url) {
         Ok(response) => {
             if response.status().is_success() {
-                // Process the response if needed
+                let code: &u16 = &response.status().as_u16() as &u16;
                 info!("Successful response from {}, thread {}", endpoint, i);
 
                 let api_response: ApiResponse =
-                    serde_json::from_str(response.text().unwrap().as_str())
-                        .expect("Failed to deserialize JSON");
+                    match serde_json::from_str(response.text().unwrap().as_str()) {
+                        Ok(response) => response,
+                        Err(err) => {
+                            error!("Unsuccessful Serialization: {:?}", err);
+                            window
+                                .emit(
+                                    "error_env",
+                                    Error_Emit {
+                                        errorCode: *code as u32,
+                                        errorMessage: format!("Serialization failed: {:?}", err)
+                                            .as_str(),
+                                        id: id,
+                                    },
+                                )
+                                .unwrap();
+                            return;
+                        }
+                    };
 
                 let _ = db_conn.execute("INSERT INTO mp3_table_data (
                                 file_name, 
@@ -102,22 +130,22 @@ fn make_api_call<R: Runtime>(
                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",params![
                                     endpoint,
                                     path,
-                                    api_response.title,
-                                    api_response.artist,
-                                    api_response.data.album.value,
-                                    api_response.data.year.value,
-                                    api_response.data.track.value,
-                                    api_response.data.genre.value,
-                                    api_response.data.comments.value,
-                                    api_response.data.albumArtist.value,
-                                    api_response.data.composer.value,
-                                    api_response.data.discno.value,
-                                    api_response.calls.successfulMechanismCalls,
-                                    api_response.calls.successfulMechanismCalls,
-                                    api_response.calls.successfulQueries,
-                                    api_response.calls.totalMechanismCalls,
-                                    api_response.calls.totalMechanismCalls,
-                                    api_response.calls.totalQueries,
+                                    api_response.result.title,
+                                    api_response.result.artist,
+                                    api_response.result.data.album.value,
+                                    api_response.result.data.year.value,
+                                    api_response.result.data.track.value,
+                                    api_response.result.data.genre.value,
+                                    api_response.result.data.comments.value,
+                                    api_response.result.data.albumArtist.value,
+                                    api_response.result.data.composer.value,
+                                    api_response.result.data.discno.value,
+                                    api_response.result.calls.successfulMechanismCalls,
+                                    api_response.result.calls.successfulMechanismCalls,
+                                    api_response.result.calls.successfulQueries,
+                                    api_response.result.calls.totalMechanismCalls,
+                                    api_response.result.calls.totalMechanismCalls,
+                                    api_response.result.calls.totalQueries,
                                     path
                                 ])
                     .expect("Error Inserting data");
@@ -172,6 +200,9 @@ pub fn threaded_execution<R: Runtime>(
         let db_pool_clone = Arc::clone(&db_pool);
 
         let handle = thread::spawn(move || loop {
+            if SHOULD_STOP.load(Ordering::Relaxed) {
+                break;
+            }
             let mut endpoints = endpoints_clone.lock().unwrap();
             let mut paths = paths_clone.lock().unwrap();
 

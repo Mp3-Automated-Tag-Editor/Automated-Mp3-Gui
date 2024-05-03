@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -20,8 +20,8 @@ pub struct Network_Details {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Server_Health {
-    status: i32,
-    message: String,
+    pub status: i32,
+    pub message: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -101,8 +101,34 @@ pub struct Calls {
 
 #[derive(Debug, Deserialize)]
 pub struct ApiResponse {
+    pub result: ResultData,
+    pub from_cache: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResultData {
     pub artist: String,
     pub title: String,
-    pub data: Data,
+    pub data: Classifier_Data,
     pub calls: Calls,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Classifier_Data {
+    pub artist: Classifier<String>,
+    pub title: Classifier<String>,
+    pub album: Classifier<String>,
+    pub year: Classifier<i32>,
+    pub track: Classifier<i32>,
+    pub comments: Classifier<String>,
+    pub albumArtist: Classifier<String>,
+    pub composer: Classifier<String>,
+    pub discno: Classifier<i32>,
+    pub genre: Classifier<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Classifier<T: Eq + Hash> {
+    pub classifierOptions: HashMap<T, f64>,
+    pub value: T,
 }

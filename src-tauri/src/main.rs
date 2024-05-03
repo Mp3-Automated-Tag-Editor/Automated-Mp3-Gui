@@ -7,9 +7,10 @@ use std::env;
 use std::fs;
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::{Read, Write};
-use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Manager, Runtime, Window};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod db;
 mod json;
@@ -23,7 +24,6 @@ use log::trace;
 use log::warn;
 
 // Main Func
-
 fn main() {
     std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
@@ -40,6 +40,7 @@ fn main() {
             get_network_data,
             get_server_health,
             start_scrape_process,
+            stop_scrape_process,
             get_settings_data,
             save_settings,
             close_splashscreen,
@@ -122,6 +123,7 @@ async fn start_scrape_process<R: Runtime>(
     let num_workers = 2;
 
     let start_time = std::time::Instant::now();
+    threading::prepare_execution();
     threading::threaded_execution(
         window,
         file_names.unwrap(),
@@ -133,6 +135,13 @@ async fn start_scrape_process<R: Runtime>(
 
     println!("Threaded Execution Time: {:?}", elapsed_time);
     Ok(elapsed_time.as_secs().try_into().unwrap())
+}
+
+// Method to stop the process
+#[tauri::command]
+async fn stop_scrape_process() -> Result<(), ()> {
+    threading::stop_execution();
+    Ok(())
 }
 
 #[tauri::command]
@@ -228,29 +237,24 @@ async fn get_server_health() -> Result<types::Server_Health, String> {
                             serde_json::from_slice(&body_bytes);
                         match data_result {
                             Ok(data) => Ok(data),
-                            Err(err) => Err(format!("Failed to deserialize data: {}", err)),
+                            Err(err) => Ok(types::Server_Health {
+                                status: 400,
+                                message: format!("Failed to deserialize data: {}", err)
+                            })
                         }
                     }
                     Err(err) => Err(format!("Failed to read response body: {}", err)),
                 }
             } else {
                 // Return an error if the response is not successful
-                Err(format!(
-                    "Request failed with status code: {}",
-                    response.status()
-                ))
+                Ok(types::Server_Health {
+                    status: 400,
+                    message: format!("Request failed with status code: {}", response.status())
+                })
             }
         }
         Err(err) => Err(format!("Failed to fetch data: {}", err)), // Return error if request fails
     }
-
-    //     if response.status().is_success() {
-    //         let parsed_json: types::Server_Health = serde_json::from_str(response.js).expect("JSON was not well-formatted");
-    //         Ok(parsed_json)
-    //     } else {
-    //         Err(format!("Server returned non-success status code: {}", response.status()))
-    //     }
-    // }
 }
 
 #[tauri::command]

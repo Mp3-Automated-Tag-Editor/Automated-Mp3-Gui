@@ -1,3 +1,5 @@
+"use client";
+
 import {
     AlertDialog,
     AlertDialogContent,
@@ -9,14 +11,23 @@ import {
 
 import { Button } from "./ui/button";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function Alert({ initial = false, msg, header, func }: {
+export default function Alert({ initial = false, msg, header, func, type = 0, goBackFunc, retryFunc }: {
     initial: boolean,
     msg: string,
     header: string,
-    func: any
+    func: any,
+    type: number,
+    goBackFunc: any,
+    retryFunc: any
 }) {
     const [open, setOpen] = useState(initial);
+    const router = useRouter();
+
+    const handleClick = () => {
+        
+    };
     return (
         <AlertDialog open={open} >
             <AlertDialogContent>
@@ -27,10 +38,24 @@ export default function Alert({ initial = false, msg, header, func }: {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <Button onClick={() => {
-                        setOpen(!open);
-                        // func(!open);
-                    }}>Ok</Button>
+                    {
+                        type == 1 ?
+                            <>
+                                <Button onClick={() => {
+                                    setOpen(!open);
+                                    goBackFunc(1)
+                                }}>Go Back</Button>
+                                <Button onClick={() => {
+                                    setOpen(!open);
+                                    retryFunc()
+                                }}>Retry</Button>
+                            </>
+                            :
+                            <Button onClick={() => {
+                                setOpen(!open);
+                                // func(!open);
+                            }}>Ok</Button>
+                    }
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

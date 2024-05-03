@@ -30,6 +30,7 @@ import { Store } from "tauri-plugin-store-api";
 import { CheckItem, ErrorItem, SongItem } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import CancelScrape from "@/components/CancelScrape";
 
 const store = new Store(".settings.dat");
 
@@ -37,7 +38,7 @@ const Start = () => {
   const [directory, setDirectory] = useState<any>();
   const [numFiles, setNumFiles] = useState<number>(0);
   const [error, setError] = useState<boolean>(false);
-  const [errorDetails, setErrorDetails] = useState<{ title: string, data: string }>({ title: "", data: "" })
+  const [errorDetails, setErrorDetails] = useState<{ title: string, data: string, type: number }>({ title: "", data: "", type: 0 })
   const [loading, setLoading] = useState<{ state: boolean, msg: string }>({ state: false, msg: "" });
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
@@ -153,12 +154,13 @@ const Start = () => {
     try {
       var msg = await invoke('get_server_health') as ServerHealth
       if (msg.status == 200) {
-        return(msg)
+        return (msg)
       } else {
-        return({status: 404, message: "Unable to Connect to Server, exiting process."} as ServerHealth)
+        return ({ status: 404, message: "Unable to Connect to Server, exiting process." } as ServerHealth)
       }
     } catch (error) {
       console.log(error);
+      return ({ status: 404, message: error } as ServerHealth)
     }
   }
 
@@ -176,11 +178,42 @@ const Start = () => {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async function startSearch() {
+  async function goBack(type: number) {
+    if (type == 1) {
+      checks.set(123, { id: 123, message: "Retry? ", lineType: 3, messageOptional: "No", result: false } as Initialization);
+      setHashmap(new Map(hashmap));
+      await sleep(3500)
+      checks.set(123, { id: 123, message: "Initialization Stopped, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+      await sleep(3500)
+      checks.clear()
+      setDisplayConsole(!displayConsole)
+      return
+    } else {
+      // Find out if in checks or in hashmap, stop execution accordingly
+      checks.set(124, { id: 124, message: "Scrape Cancelled, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+      setHashmap(new Map(hashmap));
+      await sleep(3500)
+      checks.clear()
+      setDisplayConsole(!displayConsole)
+      return
+    }
+  }
+
+  async function retry() {
+    checks.set(123, { id: 123, message: "Retry? ", lineType: 3, messageOptional: "Yes", result: true } as Initialization);
+    setHashmap(new Map(hashmap));
+    await sleep(3500)
+    checks.clear()
+    startSearch(1)
+  }
+
+  async function startSearch(type: number) {
     if (!directory) {
       setErrorDetails({
         title: "No Selected Directory",
-        data: "Kindly select a directory that contains music files to be scraped."
+        data: "Kindly select a directory that contains music files to be scraped.",
+        type: 0
       })
       setError(true);
       return;
@@ -188,7 +221,8 @@ const Start = () => {
     else {
       setErrorDetails({
         title: "",
-        data: ""
+        data: "",
+        type: 0
       })
       setError(false);
 
@@ -216,11 +250,13 @@ If network check fails
       setNumFiles(val);
       setLoading({ state: false, msg: "" });
 
-      setDisplayConsole(!displayConsole);
-      setProgress(0);
+      if (type == 0) {
+        setDisplayConsole(!displayConsole);
+      }
       setTimeout(() => {
         ScrollDown(consoleRef.current);
       }, 2000);
+      setProgress(0);
 
       // Initial initialization, directory and threads
       var counter = 0;
@@ -253,7 +289,8 @@ If network check fails
 
         setErrorDetails({
           title: "Error Code: " + serverHealth?.status,
-          data: "" + serverHealth?.message
+          data: "" + serverHealth?.message,
+          type: 1
         })
         setError(true);
         return
@@ -275,7 +312,8 @@ If network check fails
 
         setErrorDetails({
           title: "Error Code: " + serverHealth?.status,
-          data: "" + serverHealth?.message
+          data: "" + serverHealth?.message,
+          type: 1
         })
         setError(true);
         return
@@ -325,14 +363,16 @@ If network check fails
         setError(false);
         setErrorDetails({
           title: "",
-          data: ""
+          data: "",
+          type: 0
         })
       } else return;
 
       if (await checkIfDirectoryContainsMusic(selectedPath) === false) {
         setErrorDetails({
           title: "Invalid Directory!",
-          data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped."
+          data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped.",
+          type: 1
         })
         setError(true);
         setDirectory("");
@@ -361,7 +401,7 @@ If network check fails
             {error === true ? (
               <>
                 <Dialog msg={errorDetails.data} title={errorDetails.title} variant="destructive" type={true} />
-                <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} />
+                <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} goBackFunc={goBack} retryFunc={retry} />
               </>
             ) : (
               directory === "" || directory === undefined || directory === null ? null : <Dialog msg={directory} title="Selected Directory" variant="none" type={false} />
@@ -430,7 +470,7 @@ If network check fails
                   </SheetContent>
                 </Sheet>
 
-                <Button onClick={() => { startSearch() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                <Button onClick={() => { startSearch(0) }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
                   Start
                 </Button>
               </div>
@@ -450,8 +490,6 @@ If network check fails
               <div className="fakeScreen">
 
                 <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
-
-
                 {/* <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
                 <p className="line3">[&gt;] Chosen Directory: {directory}</p>
                 <p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
@@ -468,6 +506,7 @@ If network check fails
                   })
                 }
                 {initializeSuccess ? <Separator className="my-2" /> : null}
+                <CancelScrape func={goBack} keyCombo="c" />
                 {
                   [...hashmap].map((entry) => {
                     let key = entry[0];
