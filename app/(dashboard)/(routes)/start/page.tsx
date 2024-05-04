@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet"
 import { Progress } from "@/components/ui/progress"
 import { invoke } from '@tauri-apps/api/tauri'
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Dialog from "@/components/dialog";
@@ -30,9 +30,44 @@ import { Store } from "tauri-plugin-store-api";
 import { CheckItem, ErrorItem, SongItem } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import CancelScrape from "@/components/CancelScrape";
+import { GlobalHotKeys } from 'react-hotkeys'
+import useStateRef from "react-usestateref";
+
 
 const store = new Store(".settings.dat");
+
+// function Playground() {
+//   const [count, setCount] = useState(0);
+
+//   const handleEvent = useCallback(() => {
+//     setCount((count) => count + 1);
+//   }, [setCount]);
+
+//   useEffect(() => {
+//     console.log("Count Value now is: ", count);
+//   }, [count]);
+
+//   return (
+//     <GlobalHotKeys
+//       keyMap={{
+//         FOCUS_BARCODE: "ctrl+c"
+//       }}
+//       handlers={{
+//         FOCUS_BARCODE: handleEvent
+//       }}
+//     >
+//       <div>
+//         <h1>Here is count value: {count}</h1>
+//         <button onClick={() => setCount((count) => count + 1)}>
+//           {" "}
+//           Increase Count
+//         </button>
+//       </div>
+//     </GlobalHotKeys>
+//   );
+// }
+
+// export default Playground;
 
 const Start = () => {
   const [directory, setDirectory] = useState<any>();
@@ -43,22 +78,29 @@ const Start = () => {
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
-  const [serverHealth, setServerHealth] = useState<ServerHealth>({ message: "Unable to Connect to the Server. Please Try again later.", status: 404 });
   const [initializeSuccess, setInitializeSuccess] = useState<boolean>(false);
+  const [stopScrape, setStopScrape, ref] = useStateRef<boolean>(false);
 
   //Terminus 
   const [checks, setChecks] = useState<Map<Number, Initialization>>(new Map());
   const [hashmap, setHashmap] = useState<Map<Number, WindowEmit>>(new Map());
 
   const consoleRef = useRef(null);
+  const test = useRef(false);
 
   useEffect(() => {
     async function listenProgressDetails() {
-      let unListen1: UnlistenFn = await listen('progress_start', (event) => {
-        const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
-        hashmap.set(progressData.id, progressData);
-        setHashmap(new Map(hashmap));
-      });
+      console.log("From progress: ",ref.current)
+      if (!ref.current) {
+        let unListen1: UnlistenFn = await listen('progress_start', (event) => {
+          const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+          hashmap.set(progressData.id, progressData);
+          setHashmap(new Map(hashmap));
+        });
+      } else {
+        setStopScrape(false)
+        return
+      }
     }
 
     async function confirmProgressDetails() {
@@ -71,29 +113,26 @@ const Start = () => {
     }
 
     async function listenErrorDetails() {
-      let unListen3: UnlistenFn = await listen('error_env', (event) => {
-        const error: WindowEmit = JSON.parse(JSON.stringify(event.payload)) as WindowEmit;
-        console.log(error.errorMessage)
-        console.log(event.payload)
+      if (!ref.current) {
+        let unListen3: UnlistenFn = await listen('error_env', (event) => {
+          const error: WindowEmit = JSON.parse(JSON.stringify(event.payload)) as WindowEmit;
+          console.log(event.payload)
 
-        error.isError = true;
-        hashmap.set(error.id, error);
-        setHashmap(new Map(hashmap));
-        setProgress(hashmap.size);
-      });
+          error.isError = true;
+          hashmap.set(error.id, error);
+          setHashmap(new Map(hashmap));
+          setProgress(hashmap.size);
+        });
+      } else {
+        setStopScrape(false)
+        return
+      }
     }
 
     listenErrorDetails();
     listenProgressDetails();
     confirmProgressDetails();
   }, []);
-
-  // Example: Updating the Map
-
-  // Effect to log the Map values whenever it changes
-  // useEffect(() => {
-  //   console.log('Map values:', hashmap);
-  // }, [hashmap]);
 
   useEffect(() => {
     async function listenDbInitialization() {
@@ -112,6 +151,14 @@ const Start = () => {
 
     listenDbInitialization();
   }, [numFiles])
+
+  const handleChangeInScrape = useCallback(async () => {
+    console.log("Shortcut triggered", stopScrape, ref.current)
+    setStopScrape(true)
+    console.log("Shortcut triggered", stopScrape, ref.current)
+    await invoke('stop_scrape_process');
+    goBack(2)
+  }, []);
 
   interface WindowEmit {
     id: number,
@@ -181,21 +228,33 @@ const Start = () => {
   async function goBack(type: number) {
     if (type == 1) {
       checks.set(123, { id: 123, message: "Retry? ", lineType: 3, messageOptional: "No", result: false } as Initialization);
-      setHashmap(new Map(hashmap));
+      setChecks(new Map(checks))
       await sleep(3500)
-      checks.set(123, { id: 123, message: "Initialization Stopped, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      checks.set(124, { id: 124, message: "Initialization Stopped, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+      setChecks(new Map(checks))
       await sleep(3500)
       checks.clear()
+      setChecks(new Map(checks))
+
       setDisplayConsole(!displayConsole)
       return
     } else {
       // Find out if in checks or in hashmap, stop execution accordingly
-      checks.set(124, { id: 124, message: "Scrape Cancelled, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      if(initializeSuccess) {
+        hashmap.set(125, {id: 125, isError: true, errorMessage: "Scrape Cancelled, Exiting..."} as WindowEmit);
+        setHashmap(new Map(hashmap));
+      } else {
+        checks.set(126, { id: 126, message: "Scrape Cancelled, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+        setChecks(new Map(checks))
+      }
       await sleep(3500)
+      setDisplayConsole(displayConsole)
+
       checks.clear()
-      setDisplayConsole(!displayConsole)
+      setChecks(new Map(checks))
+      hashmap.clear()
+      setHashmap(new Map(hashmap));
+
       return
     }
   }
@@ -226,25 +285,6 @@ const Start = () => {
       })
       setError(false);
 
-      /**
-List of Checks:
-- Search if directory (done before hand)
-- Search for thread number
-(These 2 will be added automatically)
-- Network Details
-  - If Network is Up
-  - Network Latency
-  - Speed
-- Server Health
-
-- Stopping Process (in case of failure) + Starting Process (in case all checks are passed)
-
-On Stopping Process - Pop up with error + button at bottom of terminal to retry/go back
-
-On Check for each, add it to the hashmap and force re-render of checks. 
-If network check fails
- */
-
       setLoading({ state: true, msg: "Loading your Database..." });
       const val: number = await invoke('initialize_db', { path_var: directory });
       setNumFiles(val);
@@ -263,81 +303,127 @@ If network check fails
       checks.set(counter, { id: counter, message: "Welcome to the Automated Mp3 Tag Editor.", lineType: 2, messageOptional: " Initializing Scraper...", result: true } as Initialization);
       setHashmap(new Map(hashmap));
 
-
       await sleep(3500)
-      counter++
-      checks.set(counter, { id: counter, message: "Chosen Directory: ", lineType: 3, messageOptional: directory, result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      if (!ref.current) {
+        counter++
+        checks.set(counter, { id: counter, message: "Chosen Directory: ", lineType: 3, messageOptional: directory, result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
+        return
+      }
+
+      console.log(ref.current)
 
       await sleep(1000)
-      counter++
-      checks.set(counter, { id: counter, message: "Number of Threads: ", lineType: 3, messageOptional: settingsData.threads, result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      if (!ref.current) {
+        counter++
+        checks.set(counter, { id: counter, message: "Number of Threads: ", lineType: 3, messageOptional: settingsData.threads, result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
+        return
+      }
+
+      console.log(ref.current)
 
       const networkDetails = await getNetworkDetails();
       const serverHealth = await getServerHealth();
       await sleep(1000)
-      counter++
-      if (!networkDetails?.ifConnected) {
-        checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Failed", result: false } as Initialization);
-        setHashmap(new Map(hashmap));
-
-        await sleep(1000)
+      if (!ref.current) {
         counter++
-        checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
-        setHashmap(new Map(hashmap));
+        if (!networkDetails?.ifConnected) {
+          checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Failed", result: false } as Initialization);
+          setHashmap(new Map(hashmap));
 
-        setErrorDetails({
-          title: "Error Code: " + serverHealth?.status,
-          data: "" + serverHealth?.message,
-          type: 1
-        })
-        setError(true);
+          await sleep(1000)
+          counter++
+          checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
+          setHashmap(new Map(hashmap));
+
+          setErrorDetails({
+            title: "Error Code: " + serverHealth?.status,
+            data: "" + serverHealth?.message,
+            type: 1
+          })
+          setError(true);
+          setStopScrape(false)
+          return
+        }
+        checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Connected", result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
         return
       }
-      checks.set(counter, { id: counter, message: "Checking Network: ", lineType: 3, messageOptional: "Connected", result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+
 
       await sleep(1000)
-      counter++
-      console.log(serverHealth)
-      if (serverHealth?.status != 200) {
-        checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth?.message, result: false } as Initialization);
-        setHashmap(new Map(hashmap));
-
-        await sleep(1000)
+      if (!ref.current) {
         counter++
-        checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
-        setHashmap(new Map(hashmap));
+        console.log(serverHealth)
+        if (serverHealth?.status != 200) {
+          checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth?.message, result: false } as Initialization);
+          setHashmap(new Map(hashmap));
 
-        setErrorDetails({
-          title: "Error Code: " + serverHealth?.status,
-          data: "" + serverHealth?.message,
-          type: 1
-        })
-        setError(true);
+          await sleep(1000)
+          counter++
+          checks.set(counter, { id: counter, message: "AutoMp3 Initialization Failed: ", lineType: 2, messageOptional: "Exiting", result: false } as Initialization);
+          setHashmap(new Map(hashmap));
+
+          setErrorDetails({
+            title: "Error Code: " + serverHealth?.status,
+            data: "" + serverHealth?.message,
+            type: 1
+          })
+          setError(true);
+          setStopScrape(false)
+          return
+        }
+        checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth.message, result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
         return
       }
-      checks.set(counter, { id: counter, message: "Server Health: ", lineType: 3, messageOptional: serverHealth.message, result: true } as Initialization);
-      setHashmap(new Map(hashmap));
 
       await sleep(1000)
-      counter++
-      var latency = networkDetails?.latency as unknown as String
-      checks.set(counter, { id: counter, message: "Server Latency:  ", lineType: 3, messageOptional: latency + " ms", result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      if (!ref.current) {
+        counter++
+        var latency = networkDetails?.latency as unknown as String
+        checks.set(counter, { id: counter, message: "Server Latency:  ", lineType: 3, messageOptional: latency + " ms", result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
+        return
+      }
 
       await sleep(1000)
-      counter++
-      checks.set(counter, { id: counter, message: "Initialization Complete, Listening for events... ", lineType: 2, messageOptional: "", result: true } as Initialization);
-      setHashmap(new Map(hashmap));
+      if (!ref.current) {
+        counter++
+        checks.set(counter, { id: counter, message: "Initialization Complete, Listening for events... ", lineType: 2, messageOptional: "", result: true } as Initialization);
+        setHashmap(new Map(hashmap));
+      } else {
+        setStopScrape(false)
+        return
+      }
 
-      await sleep(1000)
-      setInitializeSuccess(true)
+      if (!ref.current) {
+        await sleep(1000)
+        setInitializeSuccess(true)
+      } else {
+        setStopScrape(false)
+        return
+      }
 
-      await sleep(3500)
-      const elapsedTime = await invoke('start_scrape_process', { pathVar: directory });
-      console.log(elapsedTime);
+      if (!ref.current) {
+        await sleep(3500)
+        const elapsedTime = await invoke('start_scrape_process', { pathVar: directory });
+        console.log(elapsedTime);
+      } else {
+        setStopScrape(false)
+        return
+      }
     };
   }
 
@@ -385,29 +471,37 @@ If network check fails
   }
 
   return (
-    <div>
-      {loading.state ? <Loading msg={loading.msg} /> :
-        <>
-          <Heading
-            title={displayConsole ? "Start Search" : "Searching..."}
-            description={displayConsole ? "Our most advanced Vector based AI-indexing model for music metadata." : "Getting your music ready for you!"}
-            icon={Play}
-            iconColor="text-violet-500"
-            otherProps="mb-8"
-          // bgColor="bg-violet-500/10"
-          />
-          <div className={cn("px-4 my-4 lg:px-8", !displayConsole ? "hidden" : "visible")}>
+    <GlobalHotKeys
+      keyMap={{
+        FOCUS_BARCODE: "ctrl+c"
+      }}
+      handlers={{
+        FOCUS_BARCODE: handleChangeInScrape
+      }}
+    >
+      <div>
+        {loading.state ? <Loading msg={loading.msg} /> :
+          <>
+            <Heading
+              title={displayConsole ? "Start Search" : "Searching..."}
+              description={displayConsole ? "Our most advanced Vector based AI-indexing model for music metadata." : "Getting your music ready for you!"}
+              icon={Play}
+              iconColor="text-violet-500"
+              otherProps="mb-8"
+            // bgColor="bg-violet-500/10"
+            />
+            <div className={cn("px-4 my-4 lg:px-8", !displayConsole ? "hidden" : "visible")}>
 
-            {error === true ? (
-              <>
-                <Dialog msg={errorDetails.data} title={errorDetails.title} variant="destructive" type={true} />
-                <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} goBackFunc={goBack} retryFunc={retry} />
-              </>
-            ) : (
-              directory === "" || directory === undefined || directory === null ? null : <Dialog msg={directory} title="Selected Directory" variant="none" type={false} />
-            )
-            }
-            <div className="rounded-lg 
+              {error === true ? (
+                <>
+                  <Dialog msg={errorDetails.data} title={errorDetails.title} variant="destructive" type={true} />
+                  <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} goBackFunc={goBack} retryFunc={retry} />
+                </>
+              ) : (
+                directory === "" || directory === undefined || directory === null ? null : <Dialog msg={directory} title="Selected Directory" variant="none" type={false} />
+              )
+              }
+              <div className="rounded-lg 
                 border 
                 w-full 
                 p-4 
@@ -415,69 +509,71 @@ If network check fails
                 md:px-6 
                 focus-within:shadow-sm
             ">
-              <h5 className="text-l font-bold">Some Points to Note:</h5>
-              <p className="text-sm py-4">
-                <ol>
-                  <li>1. Make sure to select a directory which contains Mp3 files only.</li>
-                  <li>2. Mp3 files that contain incomplete Metadata will also be searched and indexed.</li>
-                  <li>3. To download indexed database, kindly turn on Developer Settings in <b>Settings</b>, as this is turned off by default.</li>
-                  <li>4. Make sure to configure the application, including number of threads to be used to hasten the indexing process.</li>
-                  <li>5. Remember, the trial allows <b>100 Deep Searches</b> only, kindly buy more credits to index more songs.</li>
-                </ol>
+                <h5 className="text-l font-bold">Some Points to Note:</h5>
+                <p className="text-sm py-4">
+                  <ol>
+                    <li>1. Make sure to select a directory which contains Mp3 files only.</li>
+                    <li>2. Mp3 files that contain incomplete Metadata will also be searched and indexed.</li>
+                    <li>3. To download indexed database, kindly turn on Developer Settings in <b>Settings</b>, as this is turned off by default.</li>
+                    <li>4. Make sure to configure the application, including number of threads to be used to hasten the indexing process.</li>
+                    <li>5. Remember, the trial allows <b>100 Deep Searches</b> only, kindly buy more credits to index more songs.</li>
+                  </ol>
 
-              </p>
-              <div className="text-sm pb-2">Happy Searching!</div>
+                </p>
+                <div className="text-sm pb-2">Happy Searching!</div>
 
-              <div className="grid
+                <div className="grid
                 grid-cols-12
                 gap-2 py-2">
-                <Button onClick={selectDirectory} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                  Select Directory
-                </Button>
+                  <Button onClick={selectDirectory} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                    Select Directory
+                  </Button>
 
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                      Settings
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Edit profile</SheetTitle>
-                      <SheetDescription>
-                        Make changes to your profile here. Click save when you&apos;re done.
-                      </SheetDescription>
-                    </SheetHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                          Name
-                        </Label>
-                        <Input id="name" value="Pedro Duarte" className="col-span-3" />
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                        Settings
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent>
+                      <SheetHeader>
+                        <SheetTitle>Edit profile</SheetTitle>
+                        <SheetDescription>
+                          Make changes to your profile here. Click save when you&apos;re done.
+                        </SheetDescription>
+                      </SheetHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="name" className="text-right">
+                            Name
+                          </Label>
+                          <Input id="name" value="Pedro Duarte" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="username" className="text-right">
+                            Username
+                          </Label>
+                          <Input id="username" value="@peduarte" className="col-span-3" />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="username" className="text-right">
-                          Username
-                        </Label>
-                        <Input id="username" value="@peduarte" className="col-span-3" />
-                      </div>
-                    </div>
-                    <SheetFooter>
-                      <SheetClose asChild>
-                        <Button type="submit">Save changes</Button>
-                      </SheetClose>
-                    </SheetFooter>
-                  </SheetContent>
-                </Sheet>
+                      <SheetFooter>
+                        <SheetClose asChild>
+                          <Button type="submit">Save changes</Button>
+                        </SheetClose>
+                      </SheetFooter>
+                    </SheetContent>
+                  </Sheet>
 
-                <Button onClick={() => { startSearch(0) }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                  Start
-                </Button>
+                  <Button onClick={() => { startSearch(0) }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                    Start
+                  </Button>
+
+
+                </div>
               </div>
             </div>
-          </div>
-          <div ref={consoleRef} id="section-1" className={cn("px-4 mt-10 lg:px-8", displayConsole ? "hidden" : "visible")}>
-            <div className="rounded-lg 
+            <div ref={consoleRef} id="section-1" className={cn("px-4 mt-10 lg:px-8", displayConsole ? "hidden" : "visible")}>
+              <div className="rounded-lg 
                 border 
                 w-full 
                 p-4 
@@ -485,49 +581,54 @@ If network check fails
                 md:px-6 
                 focus-within:shadow-sm
             ">
-              <Progress indicatorColor="bg-black" value={progress * 100 / numFiles} className="w-full" />
-              {/*Make a loading component that renders each time, and push to array only after confirmation is sent from backend*/}
-              <div className="fakeScreen">
+                <Progress indicatorColor="bg-black" value={progress * 100 / numFiles} className="w-full" />
+                {/*Make a loading component that renders each time, and push to array only after confirmation is sent from backend*/}
 
-                <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
-                {/* <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
-                <p className="line3">[&gt;] Chosen Directory: {directory}</p>
-                <p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
-                <p className="line3">[&gt;] Checking Network: </p>
-                <p className="line3">[&gt;] Network Speed: </p>
-                <p className="line3">[&gt;] Network Latency: </p>
-                <p className="line3">[&gt;] Server Health: {serverHealth?.message}</p>
-                <p className="line2">Initialization Complete, Listening for events...</p> */}
-                {
-                  [...checks].map((entry) => {
-                    let key = entry[0];
-                    let value = entry[1];
-                    return <CheckItem key={value.id} message={value.message} lineType={value.lineType} messageOptional={value.messageOptional} result={value.result} />
-                  })
-                }
-                {initializeSuccess ? <Separator className="my-2" /> : null}
-                <CancelScrape func={goBack} keyCombo="c" />
-                {
-                  [...hashmap].map((entry) => {
-                    let key = entry[0];
-                    let value = entry[1];
-                    if (value.isError) return (
-                      <ErrorItem key={value.id} message={value.errorMessage} code={value.errorCode} />
-                    )
-                    else return (
-                      <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
-                    )
-                  })
-                }
-                <p className="line4">&gt;<span className="cursor4">_</span></p>
-                <div id="snap"></div>
+                <div className="fakeScreen">
+
+                  <p className="line1">$ Mp3-Automated-Tag-Editor v1.3.0<span className="cursor1">_</span></p>
+                  {/* <p className="line2">Welcome to the Automated Mp3 Tag Editor. Initializing Scraper</p>
+<p className="line3">[&gt;] Chosen Directory: {directory}</p>
+<p className="line3">[&gt;] Number of Threads: {settingsData.threads}</p>
+<p className="line3">[&gt;] Checking Network: </p>
+<p className="line3">[&gt;] Network Speed: </p>
+<p className="line3">[&gt;] Network Latency: </p>
+<p className="line3">[&gt;] Server Health: {serverHealth?.message}</p>
+<p className="line2">Initialization Complete, Listening for events...</p> */}
+                  {
+                    [...checks].map((entry) => {
+                      let key = entry[0];
+                      let value = entry[1];
+                      return <CheckItem key={value.id} message={value.message} lineType={value.lineType} messageOptional={value.messageOptional} result={value.result} />
+                    })
+                  }
+                  {initializeSuccess ? <Separator className="my-2" /> : null}
+                  {
+                    [...hashmap].map((entry) => {
+                      let key = entry[0];
+                      let value = entry[1];
+                      if (value.isError) return (
+                        <ErrorItem key={value.id} message={value.errorMessage} code={value.errorCode} />
+                      )
+                      else return (
+                        <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
+                      )
+                    })
+                  }
+                  <p className="line4">&gt;<span className="cursor4">_</span></p>
+                  <div id="snap"></div>
+                </div>
+                {/* </GlobalHotKeys> */}
+                <Button onClick={() => { handleChangeInScrape() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                  Cancel
+                </Button>
               </div>
             </div>
-          </div>
-        </>
-      }
+          </>
+        }
 
-    </div>
+      </div>
+    </GlobalHotKeys>
   );
 }
 

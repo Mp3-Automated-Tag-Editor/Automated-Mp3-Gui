@@ -7,10 +7,10 @@ use std::env;
 use std::fs;
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Manager, Runtime, Window};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 mod db;
 mod json;
@@ -37,6 +37,7 @@ fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            return_summary,
             get_network_data,
             get_server_health,
             start_scrape_process,
@@ -137,11 +138,15 @@ async fn start_scrape_process<R: Runtime>(
     Ok(elapsed_time.as_secs().try_into().unwrap())
 }
 
-// Method to stop the process
 #[tauri::command]
 async fn stop_scrape_process() -> Result<(), ()> {
     threading::stop_execution();
     Ok(())
+}
+
+#[tauri::command]
+async fn return_summary() -> Result<String, ()> {
+    Ok("Summary: ".to_string())
 }
 
 #[tauri::command]
@@ -194,9 +199,9 @@ async fn get_network_data() -> Result<types::Network_Details, String> {
     // Check if connected to a network
     let if_connected = reqwest::get(check_url).await.is_ok();
 
-    debug!("{:?}", if_connected);
-
+    info!("Network Connected: {}", if_connected);
     if !if_connected {
+        error!("Network Connected: Failed");
         return Ok(types::Network_Details {
             if_connected: false,
             speed: 0,
@@ -208,6 +213,7 @@ async fn get_network_data() -> Result<types::Network_Details, String> {
     let _ = reqwest::get(req_url).await.is_ok();
     let elapsed_time = start_time.elapsed();
 
+    info!("Completed Network Checks");
     Ok(types::Network_Details {
         if_connected: true,
         speed: 0,
@@ -236,20 +242,29 @@ async fn get_server_health() -> Result<types::Server_Health, String> {
                         let data_result: Result<types::Server_Health, _> =
                             serde_json::from_slice(&body_bytes);
                         match data_result {
-                            Ok(data) => Ok(data),
-                            Err(err) => Ok(types::Server_Health {
-                                status: 400,
-                                message: format!("Failed to deserialize data: {}", err)
-                            })
+                            Ok(data) => {
+                                info!("Server Health Checks - success");
+                                Ok(data)
+                            }
+                            Err(err) => {
+                                info!("Server Health Checks - failed");
+                                Ok(types::Server_Health {
+                                    status: 400,
+                                    message: format!("Failed to deserialize data: {}", err),
+                                })
+                            }
                         }
                     }
-                    Err(err) => Err(format!("Failed to read response body: {}", err)),
+                    Err(err) => {
+                        info!("Server Health Checks - failed");
+                        Err(format!("Failed to read response body: {}", err))
+                    }
                 }
             } else {
-                // Return an error if the response is not successful
+                info!("Server Health Checks - failed");
                 Ok(types::Server_Health {
                     status: 400,
-                    message: format!("Request failed with status code: {}", response.status())
+                    message: format!("Request failed with status code: {}", response.status()),
                 })
             }
         }
