@@ -134,13 +134,15 @@ async fn start_scrape_process<R: Runtime>(
     );
     let elapsed_time = start_time.elapsed();
 
-    println!("Threaded Execution Time: {:?}", elapsed_time);
+    info!("Threaded Execution Time: {:?}", elapsed_time);
     Ok(elapsed_time.as_secs().try_into().unwrap())
 }
 
 #[tauri::command]
 async fn stop_scrape_process() -> Result<(), ()> {
+    info!("Stop Scrape Process function called");
     threading::stop_execution();
+    info!("Stop Scrape Process function Success - Threads Stopped");
     Ok(())
 }
 

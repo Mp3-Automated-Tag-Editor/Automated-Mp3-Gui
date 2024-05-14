@@ -78,7 +78,7 @@ const Start = () => {
   const [displayConsole, setDisplayConsole] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
   const [settingsData, setSettingsData] = useState<any>({});
-  const [initializeSuccess, setInitializeSuccess] = useState<boolean>(false);
+  const [initializeSuccess, setInitializeSuccess, initializeSuccessRef] = useStateRef<boolean>(false);
   const [stopScrape, setStopScrape, ref] = useStateRef<boolean>(false);
 
   //Terminus 
@@ -153,9 +153,7 @@ const Start = () => {
   }, [numFiles])
 
   const handleChangeInScrape = useCallback(async () => {
-    console.log("Shortcut triggered", stopScrape, ref.current)
     setStopScrape(true)
-    console.log("Shortcut triggered", stopScrape, ref.current)
     await invoke('stop_scrape_process');
     goBack(2)
   }, []);
@@ -233,15 +231,15 @@ const Start = () => {
       checks.set(124, { id: 124, message: "Initialization Stopped, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
       setChecks(new Map(checks))
       await sleep(3500)
+
       checks.clear()
       setChecks(new Map(checks))
 
       setDisplayConsole(!displayConsole)
       return
-    } else {
-      // Find out if in checks or in hashmap, stop execution accordingly
-      if(initializeSuccess) {
-        hashmap.set(125, {id: 125, isError: true, errorMessage: "Scrape Cancelled, Exiting..."} as WindowEmit);
+    } else { // Go back from ctrl C triggered
+      if(initializeSuccessRef.current) {
+        hashmap.set(999999, {id: 999999, isError: true, errorMessage: "Scrape Cancelled, Exiting...", errorCode: 404} as WindowEmit);
         setHashmap(new Map(hashmap));
       } else {
         checks.set(126, { id: 126, message: "Scrape Cancelled, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
