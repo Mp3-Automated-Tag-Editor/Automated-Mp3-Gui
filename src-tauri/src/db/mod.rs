@@ -56,7 +56,7 @@ fn db_file_exists() -> bool {
 // Get the path where the database file should be located.
 pub fn get_db_path() -> String {
     let home_dir = dirs::home_dir().unwrap();
-    // println!("{:?}",home_dir.to_str().unwrap().to_string() + "/.config/auto-mp3/db.json");
+    println!("{:?}",home_dir.to_str().unwrap().to_string() + "/.config/auto-mp3/db.json");
     home_dir.to_str().unwrap().to_string() + r"\.config\auto-mp3\Mp3data.db"
 }
 

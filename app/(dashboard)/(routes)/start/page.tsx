@@ -27,7 +27,7 @@ import { array, boolean, number, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
-import { CheckItem, ErrorItem, SongItem } from "@/components/terminal-items";
+import { CheckItem, } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { GlobalHotKeys } from 'react-hotkeys'

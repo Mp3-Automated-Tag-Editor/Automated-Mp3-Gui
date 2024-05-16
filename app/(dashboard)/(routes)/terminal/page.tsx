@@ -24,15 +24,15 @@ import Dialog from "@/components/dialog";
 import Alert from "@/components/alert";
 import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
 import { array, boolean, number, z } from "zod";
-import Loading from "@/components/loading";
 import "../../../globals.css"
 import { Store } from "tauri-plugin-store-api";
-import { CheckItem, ErrorItem, SongItem } from "@/components/terminal-items";
+import { CheckItem, TerminalItem } from "@/components/terminal-items";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { GlobalHotKeys } from 'react-hotkeys'
 import useStateRef from "react-usestateref";
 import { useSearchParams } from "next/navigation";
+import { Initialization, NetworkDetails, Packet, Seperator, ServerHealth, Status } from "@/types";
 
 const store = new Store(".settings.dat");
 
@@ -49,7 +49,9 @@ const Terminal = () => {
 
   //Terminus
   const [checks, setChecks] = useState<Map<Number, Initialization>>(new Map());
-  const [hashmap, setHashmap] = useState<Map<Number, WindowEmit>>(new Map());
+  const [hashmap, setHashmap] = useState<Map<Number, Packet>>(new Map());
+
+  const [terminal, setTerminal] = useState<Map<Number, Initialization | Packet | Seperator >>(new Map())
 
   const consoleRef = useRef(null);
   const searchParams = useSearchParams()
@@ -67,7 +69,7 @@ const Terminal = () => {
       console.log("From progress: ", ref.current)
       if (!ref.current) {
         let unListen1: UnlistenFn = await listen('progress_start', (event) => {
-          const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+          const progressData: Packet = JSON.parse(JSON.stringify(event.payload));
           hashmap.set(progressData.id, progressData);
           setHashmap(new Map(hashmap));
         });
@@ -79,7 +81,7 @@ const Terminal = () => {
 
     async function confirmProgressDetails() {
       let unListen2: UnlistenFn = await listen('progress_end', (event) => {
-        const progressData: WindowEmit = JSON.parse(JSON.stringify(event.payload));
+        const progressData: Packet = JSON.parse(JSON.stringify(event.payload));
         hashmap.set(progressData.id, progressData);
         setHashmap(new Map(hashmap));
         setProgress(hashmap.size);
@@ -89,10 +91,10 @@ const Terminal = () => {
     async function listenErrorDetails() {
       if (!ref.current) {
         let unListen3: UnlistenFn = await listen('error_env', (event) => {
-          const error: WindowEmit = JSON.parse(JSON.stringify(event.payload)) as WindowEmit;
+          const error: Packet = JSON.parse(JSON.stringify(event.payload)) as Packet;
           console.log(event.payload)
 
-          error.isError = true;
+          error.status = Status.FAILED;
           hashmap.set(error.id, error);
           setHashmap(new Map(hashmap));
           setProgress(hashmap.size);
@@ -132,35 +134,6 @@ const Terminal = () => {
     await invoke('stop_scrape_process');
     goBack(2)
   }, []);
-
-  interface WindowEmit {
-    id: number,
-    state: boolean,
-    data: string,
-
-    isError: boolean,
-    errorCode: number,
-    errorMessage: string
-  }
-
-  interface Initialization {
-    id: number,
-    lineType: number,
-    message: string,
-    messageOptional: string,
-    result: boolean
-  }
-
-  interface NetworkDetails {
-    ifConnected: boolean,
-    latency: number,
-    speed: number
-  }
-
-  interface ServerHealth {
-    status: number,
-    message: string
-  }
 
   const ScrollDown = (ref: any) => {
     window.scrollTo({
@@ -214,7 +187,7 @@ const Terminal = () => {
       return
     } else { // Go back from ctrl C triggered
       if (initializeSuccessRef.current) {
-        hashmap.set(999999, { id: 999999, isError: true, errorMessage: "Scrape Cancelled, Exiting...", errorCode: 404 } as WindowEmit);
+        hashmap.set(999999, { id: 999999, status: Status.FAILED, errorMessage: "Scrape Cancelled, Exiting...", statusCode: 404 } as Packet);
         setHashmap(new Map(hashmap));
       } else {
         checks.set(126, { id: 126, message: "Scrape Cancelled, Exiting... ", lineType: 2, messageOptional: "", result: true } as Initialization);
@@ -258,8 +231,13 @@ const Terminal = () => {
     var counter = 0;
     checks.set(counter, { id: counter, message: "Welcome to the Automated Mp3 Tag Editor.", lineType: 2, messageOptional: " Initializing Scraper...", result: true } as Initialization);
     setHashmap(new Map(hashmap));
-
     await sleep(3500)
+
+    counter++
+    checks.set(counter, { id: counter, message: "(Press Ctrl+C at any time to Cancel)", lineType: 2, messageOptional: "", result: true } as Initialization);
+    setHashmap(new Map(hashmap));
+    await sleep(3500)
+
     if (!ref.current) {
       counter++
       checks.set(counter, { id: counter, message: "Chosen Directory: ", lineType: 3, messageOptional: directory, result: true } as Initialization);
@@ -437,20 +415,15 @@ const Terminal = () => {
               [...hashmap].map((entry) => {
                 let key = entry[0];
                 let value = entry[1];
-                if (value.isError) return (
-                  <ErrorItem key={value.id} message={value.errorMessage} code={value.errorCode} />
-                )
-                else return (
-                  <SongItem key={value.id} percentage={0} status={value.state} id={value.id} path={value.data} />
-                )
+                return (<TerminalItem key={value.id} id={value.id} status={value.status} path={value.songName} statusCode={value.statusCode} errorMessage={value.errorMessage} percentage={value.accuracy}/>);
               })
             }
             <p className="line4">&gt;<span className="cursor4">_</span></p>
             <div id="snap"></div>
           </div>
-          <Button onClick={() => { handleChangeInScrape() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+          {/* <Button onClick={() => { handleChangeInScrape() }} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
             Cancel
-          </Button>
+          </Button> */}
         </div>
       </div>
     </GlobalHotKeys>

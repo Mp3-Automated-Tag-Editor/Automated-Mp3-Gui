@@ -52,6 +52,7 @@ fn main() {
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             let splashscreen_window = app.get_window("splashscreen").unwrap();
+            let _ = test();
 
             json::init();
             trace!("JSON Handlers Successfully Initialized");
@@ -163,6 +164,105 @@ fn check_directory(var: String) -> Result<bool, bool> {
     }
     Ok(false)
 }
+
+fn test() -> Result<()> {
+    let json_str = r#"
+        { 
+            "result": { 
+                "artist": "Wovoka Gentle",
+                "title": "1000 Opera Singers Working In Startbucks",
+                "data": {
+                    "artist": {
+                        "classifierOptions": {
+                            "Voka Gentle": 2.8333333333333335,
+                            "Wovoka Gentle": 2.666666666666667
+                        },
+                        "value": "Voka Gentle"
+                    },
+                    "title": {
+                        "classifierOptions": {
+                            "1,000 Opera Singers Working in Starbucks - Radio Edit": 2.7794684520186648,
+                            "1000 Opera Singers Working In Startbucks": 2.6344086021505375,
+                            "1,000 Opera Singers Working in Starbucks (Radio Edit)": 2.7794684520186648
+                        },
+                        "value": "1,000 Opera Singers Working in Starbucks - Radio Edit"
+                    },
+                    "album": {
+                        "classifierOptions": {
+                            "1,000 Opera Singers Working in Starbucks (Radio Edit)": 3.195711733174509,
+                            "The Wovoka Gentle EP": 1.7918476445038423,
+                            "1,000 Opera Singers Working in Starbucks (Radio Edit) - Single": 3.0873806998939557
+                        },
+                        "value": "1,000 Opera Singers Working in Starbucks (Radio Edit)"
+                    },
+                    "year": {
+                        "classifierOptions": {
+                            "2018": 2.75,
+                            "2011": 2.5
+                        },
+                        "value": 2018
+                    },
+                    "track": {
+                        "classifierOptions": {
+                            "1": 2.037037037037037,
+                            "1,000 Opera Singers Working in Starbucks (Radio Edit)": 1.0740740740740742
+                        },
+                        "value": 1
+                    },
+                    "comments": {
+                        "classifierOptions": {
+                            "spotify: https://open.spotify.com/artist/4VyQOLH3ixMP5lrxhSeqKx, uri: spotify:album:4egHOHr8dl6M2gP3dDAF2Z": 1.0,
+                            "": 1.0
+                        },
+                        "value": "spotify: https://open.spotify.com/artist/4VyQOLH3ixMP5lrxhSeqKx, uri: spotify:album:4egHOHr8dl6M2gP3dDAF2Z"
+                    },
+                    "albumArtist": {
+                        "classifierOptions": {
+                            "Voka Gentle": 2.8333333333333335,
+                            "Wovoka Gentle": 2.666666666666667
+                        },
+                        "value": "Voka Gentle"
+                    },
+                    "composer": {
+                        "classifierOptions": {
+                            "Wovoka Gentle": 1.8333333333333335,
+                            "Voka Gentle": 1.8333333333333335
+                        },
+                        "value": "Wovoka Gentle"
+                    },
+                    "discno": {
+                        "classifierOptions": {
+                            "1": 2.0
+                        },
+                        "value": 1
+                    },
+                    "genre": {
+                        "classifierOptions": {
+                            "indie pop": 1.2105263157894737,
+                            "Electronic": 1.2105263157894737
+                        },
+                        "value": "indie pop"
+                    }
+                },
+                "calls": {
+                    "successfulMechanismCalls": 0,
+                    "totalMechanismCalls": 5,
+                    "successfulQueries": 27,
+                    "totalQueries": 50
+                }
+            },
+            "from_cache": false
+        }
+    "#;
+
+    match serde_json::from_str::<types::ApiResponse>(json_str) {
+        Ok(my_json) => println!("{:#?}", my_json),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+
+    Ok(())
+}
+
 
 #[tauri::command(rename_all = "snake_case")]
 async fn initialize_db<R: Runtime>(window: tauri::Window<R>, path_var: String) -> Result<u32, ()> {
