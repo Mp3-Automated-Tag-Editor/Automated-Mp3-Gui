@@ -13,7 +13,7 @@ export function TerminalItem({ id, status, path, statusCode, errorMessage = "", 
         case "SUCCESS": return (
             <div>
                 <p className="line5">[&gt;] Song #{id} <span style={{ color: 'rgb(251, 146, 60)' }}>@{path}</span></p>
-                <p className="line5 flex flex-row">Status: <span style={{ color: 'rgb(22, 163, 74)' }}>Done</span> with status Code: <span style={{ color: 'rgb(22, 163, 74)' }}>{statusCode}</span></p>
+                <p className="line5 flex flex-row">Status: <span style={{ color: 'rgb(22, 163, 74)' }}>Done </span> with status Code: <span style={{ color: 'rgb(22, 163, 74)' }}>{statusCode}</span></p>
                 <p className="line5">Percentage Accuracy: <span style={
                     {
                         color: percentage >= 70 ? 'rgb(22, 163, 74)' :

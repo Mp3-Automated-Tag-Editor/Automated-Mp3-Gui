@@ -54,7 +54,7 @@ const Start = () => {
     }
 
     setLoading({ state: true, msg: "Loading your Database..." });
-    const val: number = await invoke('initialize_db', { path_var: directory });    
+    const val: number = await invoke('initialize_db', { path_var: directory });
     router.push(`/terminal?directory=${directory}&files=${val}`)
   }
 
@@ -133,7 +133,7 @@ const Start = () => {
                 px-3 
                 md:px-6 
                 focus-within:shadow-sm
-            ">
+              ">
                 <h5 className="text-l font-bold">Some Points to Note:</h5>
                 <p className="text-sm py-4">
                   <ol>
@@ -156,7 +156,7 @@ const Start = () => {
 
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                      <Button disabled className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
                         Settings
                       </Button>
                     </SheetTrigger>

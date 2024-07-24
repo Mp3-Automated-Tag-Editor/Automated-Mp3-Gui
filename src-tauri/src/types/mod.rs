@@ -134,3 +134,23 @@ pub struct Classifier<T: Eq + Hash> {
     pub classifierOptions: HashMap<String, f64>,
     pub value: T,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EditViewSongMetadata {
+    pub id: String,
+    pub file: String,
+    pub artist: String,
+    pub title: String,
+    pub album: String,
+    pub path: String,
+    pub year: u32,
+    pub track: u32,
+    pub genre: String,
+    pub comments: String,
+    pub albumArtist: String,
+    pub composer: String,
+    pub discno: u32,
+    pub imageSrc: String,
+    pub percentage: u32,
+    pub status: String
+}
