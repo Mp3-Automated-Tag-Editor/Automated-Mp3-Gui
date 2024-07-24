@@ -4,11 +4,11 @@ use r2d2_sqlite::SqliteConnectionManager;
 use reqwest;
 use rusqlite::params;
 use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::Runtime;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 /*
 TODO:
@@ -18,8 +18,7 @@ TODO:
 - Scrape Summary - emit function, then display summary componenets.
 */
 
-use crate::types::Window_Emit;
-use crate::types::{ApiResponse, Error_Emit};
+use crate::types::{self, ApiResponse, Packet};
 
 static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
 
@@ -49,10 +48,13 @@ fn make_api_call<R: Runtime>(
             window
                 .emit(
                     "error_env",
-                    Error_Emit {
-                        errorCode: 504,
-                        errorMessage: "Error: DEV_API_ENDPOINT environment variable not set.",
+                    Packet {
                         id: id,
+                        status: types::Status::FAILED,
+                        songName: endpoint,
+                        statusCode: 405,
+                        accuracy: 0,
+                        errorMessage: "Error: DEV_API_ENDPOINT environment variable not set.",
                     },
                 )
                 .unwrap();
@@ -63,10 +65,13 @@ fn make_api_call<R: Runtime>(
     window
         .emit(
             "progress_start",
-            Window_Emit {
+            Packet {
                 id: id.clone(),
-                state: true,
-                data: endpoint,
+                status: types::Status::PROCESSING,
+                songName: endpoint,
+                statusCode: 300,
+                accuracy: 0,
+                errorMessage: "",
             },
         )
         .unwrap();
@@ -81,6 +86,7 @@ fn make_api_call<R: Runtime>(
         .expect("Failed to get database connection");
 
     info!("Request from {}, thread {}", endpoint, i);
+    let mut overall_accuracy: u32 = 0;
     match reqwest::blocking::get(req_url) {
         Ok(response) => {
             if response.status().is_success() {
@@ -95,17 +101,22 @@ fn make_api_call<R: Runtime>(
                             window
                                 .emit(
                                     "error_env",
-                                    Error_Emit {
-                                        errorCode: *code as u32,
+                                    Packet {
+                                        id: id,
+                                        status: types::Status::FAILED,
+                                        songName: endpoint,
+                                        statusCode: 400,
+                                        accuracy: 0,
                                         errorMessage: format!("Serialization failed: {:?}", err)
                                             .as_str(),
-                                        id: id,
                                     },
                                 )
                                 .unwrap();
                             return;
                         }
                     };
+
+                overall_accuracy = api_response.result.calls.successfulQueries / api_response.result.calls.totalQueries;
 
                 let _ = db_conn.execute("INSERT INTO mp3_table_data (
                                 file_name, 
@@ -159,10 +170,13 @@ fn make_api_call<R: Runtime>(
             window
                 .emit(
                     "progress_end",
-                    Window_Emit {
+                    Packet {
                         id: id.clone(),
-                        state: false,
-                        data: endpoint,
+                        status: types::Status::SUCCESS,
+                        songName: endpoint,
+                        statusCode: 200,
+                        accuracy: overall_accuracy,
+                        errorMessage: "",
                     },
                 )
                 .unwrap();
@@ -235,40 +249,3 @@ pub fn threaded_execution<R: Runtime>(
     }
 }
 
-// pub fn non_threaded_execution(endpoints: Vec<&str>) {
-//     for endpoint in endpoints {
-//         make_api_call(endpoint, 1, 1);
-//     }
-// }
-
-/*
-                    ?4,
-                    ?5,
-                    ?6,
-                    ?7,
-                    ?8,
-                    ?9,
-                    ?10,
-                    ?11,
-                    ?12,
-                    ?13,
-                    ?14,
-                    ?15,
-                    ?16,
-                    ?17
-
-                    year,
-                    track,
-                    genre,
-                    comment,
-                    album_artist,
-                    composer,
-                    discno,
-                    successfulFieldCalls,
-                    successfulMechanismCalls,
-                    successfulQueries,
-                    totalFieldCalls,
-                    totalMechanismCalls,
-                    totalSuccessfulQueries,
-                    album_art
-*/

@@ -25,19 +25,21 @@ pub struct Server_Health {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Window_Emit<'a>  {
-    pub id: u32,
-    pub state: bool,
-    pub data: &'a str,
+pub enum Status {
+    PROCESSING,
+    SUCCESS,
+    FAILED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Error_Emit<'a>  {
-    pub errorCode: u32,
-    pub errorMessage: &'a str,
+pub struct Packet<'a>  {
     pub id: u32,
+    pub status: Status,
+    pub songName: &'a str,
+    pub statusCode: u32, // 3xx for processing, 2xx for successful, 4xx for failure from Desktop, 5xx for Server failure
+    pub errorMessage: &'a str,
+    pub accuracy: u32
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -129,6 +131,26 @@ pub struct Classifier_Data {
 
 #[derive(Debug, Deserialize)]
 pub struct Classifier<T: Eq + Hash> {
-    pub classifierOptions: HashMap<T, f64>,
+    pub classifierOptions: HashMap<String, f64>,
     pub value: T,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EditViewSongMetadata {
+    pub id: String,
+    pub file: String,
+    pub artist: String,
+    pub title: String,
+    pub album: String,
+    pub path: String,
+    pub year: u32,
+    pub track: u32,
+    pub genre: String,
+    pub comments: String,
+    pub albumArtist: String,
+    pub composer: String,
+    pub discno: u32,
+    pub imageSrc: String,
+    pub percentage: u32,
+    pub status: String
 }

@@ -16,6 +16,7 @@ mod db;
 mod json;
 mod threading;
 mod types;
+mod edit;
 
 use log::debug;
 use log::error;
@@ -47,7 +48,10 @@ fn main() {
             close_splashscreen,
             initialize_db,
             check_directory,
+            read_music_directory,
+            read_music_directory_paginated,
             long_job
+            // scan_paths
         ])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
@@ -121,7 +125,7 @@ async fn start_scrape_process<R: Runtime>(
     let file_names = db::get_file_names(path_var.clone()).await;
     let file_paths = db::get_file_paths(path_var).await;
 
-    let num_workers = 2;
+    let num_workers = 1;
 
     let start_time = std::time::Instant::now();
     threading::prepare_execution();
@@ -163,6 +167,147 @@ fn check_directory(var: String) -> Result<bool, bool> {
     }
     Ok(false)
 }
+
+#[tauri::command]
+fn read_music_directory(directory: String) -> Result<Vec<types::EditViewSongMetadata>, String> {
+    info!("dir: {}", directory);
+    let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
+    let mut id_num = 0;
+    let paths = fs::read_dir(directory.clone()).unwrap();
+    for path in paths {
+        id_num+=1;
+        let file_name = path.as_ref().unwrap().file_name();
+        if file_name.clone().to_str().unwrap().ends_with(".mp3") {
+            let file_path = directory.clone() + "\\" + file_name.to_str().unwrap();
+            match edit::get_details_for_song(&file_path, id_num, file_name.to_str().unwrap()) {
+                Ok(single_song) => songs.push(single_song),
+                Err(e) => return Err(e)
+            }
+        }
+    }
+    Ok(songs)
+}
+
+#[tauri::command]
+fn read_music_directory_paginated(directory: String, page_number: usize, page_size: usize) -> Result<Vec<types::EditViewSongMetadata>, String> {
+    info!("dir: {}", directory);
+    let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
+
+    let paths = fs::read_dir(directory.clone()).unwrap();
+    let mut mp3_paths: Vec<String> = Vec::new();
+    
+    // Collect all mp3 file paths
+    for path in paths {
+        let file_name = path.as_ref().unwrap().file_name();
+        if file_name.clone().to_str().unwrap().ends_with(".mp3") {
+            let file_path = directory.clone() + "\\" + file_name.to_str().unwrap();
+            mp3_paths.push(file_path);
+        }
+    }
+
+    // Determine the range of songs for the requested page
+    let start_index = page_number * page_size;
+    let end_index = std::cmp::min(start_index + page_size, mp3_paths.len());
+
+    if start_index >= mp3_paths.len() {
+        return Ok(songs); // Return an empty vector if the start index is out of range
+    }
+
+    for i in start_index..end_index {
+        match edit::get_details_for_song(&mp3_paths[i], 1, &directory) {
+            Ok(single_song) => songs.push(single_song),
+            Err(e) => return Err(e)
+        }
+    }
+
+    Ok(songs)
+}
+
+// #[derive(Serialize, Deserialize, Clone, Debug)]
+// struct ScanPathsEvent {
+//     paths: Vec<String>,
+//     recursive: bool,
+// }
+
+// #[derive(Serialize, Deserialize, Clone, Debug)]
+// struct ToImportEvent {
+//     songs: Vec<Song>,
+//     progress: u8,
+//     error: Option<String>,
+// }
+
+// #[tauri::command]
+// async fn scan_paths(event: ScanPathsEvent, app_handle: tauri::AppHandle) -> ToImportEvent {
+//     // println!("scan_paths", event);
+//     let songs: Arc<std::sync::Mutex<Vec<Song>>> = Arc::new(Mutex::new(Vec::new()));
+
+//     event.paths.par_iter().for_each(|p| {
+//         let path = Path::new(p.as_str());
+//         // println!("{:?}", path);
+
+//         if path.is_file() {
+//             if let Some(song) = crate::metadata::extract_metadata(&path, true) {
+//                 songs.lock().unwrap().push(song);
+//             }
+//         } else if path.is_dir() {
+//             if let Some(sub_songs) = process_directory(Path::new(path), &songs, event.recursive) {
+//                 songs.lock().unwrap().extend(sub_songs);
+//             }
+//         }
+//     });
+
+//     // Print the collected songs for demonstration purposes
+//     // for song in songs.lock().unwrap().clone(){
+//     //     println!("{:?}", song);
+//     // }
+
+//     let length = songs.lock().unwrap().clone().len();
+//     if length > 500 {
+//         let songs_clone = songs.lock().unwrap();
+//         let enumerator = songs_clone.chunks(200);
+//         let chunks = enumerator.len();
+//         enumerator.into_iter().enumerate().for_each(|(idx, slice)| {
+//             thread::sleep(time::Duration::from_millis(1000));
+//             let progress = if idx == chunks - 1 {
+//                 100
+//             } else {
+//                 u8::min(
+//                     ((slice.len() * (idx + 1)) as f64 / length as f64).mul(100.0) as u8,
+//                     100,
+//                 )
+//             };
+//             println!("{:?}", progress);
+//             let _ = app_handle.emit_all(
+//                 "import_chunk",
+//                 ToImportEvent {
+//                     songs: slice.to_vec(),
+//                     progress: progress,
+//                     error: None,
+//                 },
+//             );
+//         });
+//         ToImportEvent {
+//             songs: songs.lock().unwrap().clone(),
+//             progress: 100,
+//             error: None,
+//         }
+//     } else {
+//         let _ = app_handle.emit_all(
+//             "import_chunk",
+//             ToImportEvent {
+//                 songs: songs.lock().unwrap().clone(),
+//                 progress: 100,
+//                 error: None,
+//             },
+//         );
+//         ToImportEvent {
+//             songs: songs.lock().unwrap().clone(),
+//             progress: 100,
+//             error: None,
+//         }
+//     }
+// }
+
 
 #[tauri::command(rename_all = "snake_case")]
 async fn initialize_db<R: Runtime>(window: tauri::Window<R>, path_var: String) -> Result<u32, ()> {

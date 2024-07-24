@@ -50,6 +50,16 @@ export const columns: ColumnDef<Song>[] = [
     enableHiding: false,
   },
   {
+    accessorKey: "file",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="File Name" />
+    ),
+    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("file")}</div>,
+    
+    enableSorting: false,
+    enableHiding: true,
+  },
+  {
     accessorKey: "percentage",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="%" />
@@ -96,7 +106,7 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[200px] items-center">
+        <div className="flex w-[250px] truncate items-center">
           <span>{artist}</span>
         </div>
       )
@@ -119,7 +129,7 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[200px] items-center">
+        <div className="flex w-[250px] truncate items-center">
           <span>{album}</span>
         </div>
       )
@@ -128,6 +138,16 @@ export const columns: ColumnDef<Song>[] = [
       return value.includes(row.getValue(id))
     },
     enableHiding: false,
+  },
+  {
+    accessorKey: "path",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Path" />
+    ),
+    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("path")}</div>,
+    
+    enableSorting: false,
+    enableHiding: true,
   },
   {
     accessorKey: "year",

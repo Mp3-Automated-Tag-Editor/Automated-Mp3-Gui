@@ -31,6 +31,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+
 import { songSchema } from "../data/schema"
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -50,6 +56,11 @@ export function DataTableRowActions<TData>({
 }: DataTableRowActionsProps<TData>) {
   const songDetails = songSchema.parse(row.original)
   const [openSideBar, setOpenSideBar] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState<boolean>(true);
+  const base64string = 'data:image/png;base64,'+songDetails.imageSrc
+  // var image = new Image();
+  // image.src = 'data:image/png;base64,'+songDetails.imageSrc;
+  // const content = 
 
   return (
     <>
@@ -97,6 +108,27 @@ export function DataTableRowActions<TData>({
                       </Label>
                       <Input id="username" name="album" value={songDetails.album} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
                     </div>
+                    <Collapsible>
+                      <CollapsibleTrigger onClick={() => setIsOpen(!isOpen)}>Other Craetor fields {isOpen ? "▼" : "⛛"}</CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="album" className="text-right">
+                              Album Artist
+                            </Label>
+                            <Input id="username" name="album" value={songDetails.albumArtist} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                      <CollapsibleContent>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="album" className="text-right">
+                            Composer
+                          </Label>
+                          <Input id="username" name="album" value={songDetails.composer} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="year" className="text-right">
                         Year
@@ -129,7 +161,7 @@ export function DataTableRowActions<TData>({
                       <Textarea id="username" name="comments" value={songDetails.comments} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
                     </div>
                     <Image
-                      src={songDetails.imageSrc}
+                      src={base64string}
                       width={300}
                       height={300}
                       alt="Picture of the author"
