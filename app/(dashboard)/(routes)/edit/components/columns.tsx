@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 export const columns: ColumnDef<Song>[] = [
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} />,
+    cell: ({ row, table }) => <DataTableRowActions row={row} table={table} />,
   },
   {
     id: "select",
@@ -55,7 +55,7 @@ export const columns: ColumnDef<Song>[] = [
       <DataTableColumnHeader column={column} title="File Name" />
     ),
     cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("file")}</div>,
-    
+
     enableSorting: false,
     enableHiding: true,
   },
@@ -145,7 +145,7 @@ export const columns: ColumnDef<Song>[] = [
       <DataTableColumnHeader column={column} title="Path" />
     ),
     cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("path")}</div>,
-    
+
     enableSorting: false,
     enableHiding: true,
   },

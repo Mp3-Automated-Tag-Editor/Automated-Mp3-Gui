@@ -1,7 +1,11 @@
 use base64::encode;
-use lofty::prelude::*;
+use lofty::tag::{Accessor, TagType, ItemKey, Tag};
+use lofty::picture::{Picture, PictureType};
 use lofty::probe::Probe;
 use std::path::Path;
+use lofty::file::TaggedFileExt;
+use lofty::tag::TagExt;
+use lofty::config::WriteOptions;
 
 use crate::types::{self, EditViewSongMetadata};
 
@@ -42,7 +46,7 @@ use crate::types::{self, EditViewSongMetadata};
 // }
 
 pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Result<types::EditViewSongMetadata, String> { //(directory: &str)
-    let path_str = "G:/Music/Editing Completed Songs (Ready for download)/[Cleaned Up] John Mayer - Everything You'll Ever Be (Hotel Bathroom Song) (2023_05_23 13_29_06 UTC).mp3";
+    // let path_str = "G:/Music/Editing Completed Songs (Ready for download)/[Cleaned Up] John Mayer - Everything You'll Ever Be (Hotel Bathroom Song) (2023_05_23 13_29_06 UTC).mp3";
     let path = Path::new(&complete_path);
 
     if !path.is_file() {
@@ -93,4 +97,52 @@ pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Re
     };
 
     Ok(song)
+}
+
+pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
+    let path = Path::new(&song.path);
+
+    if !path.is_file() {
+        return Err("ERROR: Path is not a file!".to_string());
+    }
+
+    let mut tagged_file = Probe::open(path)
+        .expect("ERROR: Bad path provided!")
+        .read()
+        .expect("ERROR: Failed to read file!");
+
+    let mut tag = match tagged_file.primary_tag_mut() {
+        Some(primary_tag) => primary_tag,
+        None => tagged_file.first_tag_mut().expect("ERROR: No tags found!"),
+    };
+
+    tag.set_artist(song.artist);
+    tag.set_title(song.title);
+    tag.set_album(song.album);
+    tag.insert_text(ItemKey::Year, song.year.to_string());
+    tag.insert_text(ItemKey::TrackNumber, song.track.to_string());
+    tag.insert_text(ItemKey::Genre, song.genre);
+    tag.insert_text(ItemKey::Comment, song.comments);
+    tag.insert_text(ItemKey::AlbumArtist, song.albumArtist);
+    tag.insert_text(ItemKey::Composer, song.composer);
+    tag.insert_text(ItemKey::DiscNumber, song.discno.to_string());
+
+    // Handle image data if present
+    if !song.imageSrc.is_empty() {
+        let image_data = base64::decode(song.imageSrc).map_err(|e| e.to_string())?;
+        let picture = Picture::new_unchecked(
+            PictureType::CoverFront,
+            Some(lofty::picture::MimeType::Png),
+            Some("Cover Art".to_string()),
+            image_data
+        );
+        tag.set_picture(0, picture);
+    }
+
+    let val = match tag.save_to_path(&song.path, WriteOptions::default()) {
+        Ok(_) => Ok(()),
+        Err(error_value) => Err(error_value.to_string())
+    };
+
+    val
 }

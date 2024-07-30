@@ -95,6 +95,7 @@ const Start = () => {
   async function checkIfDirectoryContainsMusic(selectedPath: any) {
     var msg = await invoke('check_directory', { var: selectedPath })
       .then((message) => {
+        console.log(msg)
         return message;
       })
       .catch((error) => console.error(error));

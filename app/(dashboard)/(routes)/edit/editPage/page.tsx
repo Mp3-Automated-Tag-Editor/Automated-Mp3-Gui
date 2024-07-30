@@ -13,10 +13,13 @@ import { useSearchParams } from "next/navigation";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
 import Loading from "@/components/loading";
+import { Button } from "@/components/ui/button";
 
 const fetchSongs = async (directory: string | null, pageNo: number | null, pageSize: number) => {
   try {
+    // const songs = await invoke('read_music_directory_paginated', { directory: directory, pageNumber: 0, pageSize: 10 });
     const songs = await invoke('read_music_directory', { directory: directory });
+
     return z.array(songSchema).parse(songs);
   } catch (error) {
     console.error("Failed to fetch Songs:", error);
@@ -31,17 +34,38 @@ const Edit = () => {
   const directory: string | null = searchParams.get('directory');
   const pageNo: string | null = searchParams.get('pageNo');
   const pageSize: string | null = searchParams.get('pageSize');
+  const totalSongs: string | null = searchParams.get('totalSongs');
 
   useEffect(() => {
     const loadTasks = async () => {
       setLoading(true);
       const fetchedSongs = await fetchSongs(directory, Number(pageNo), Number(pageSize));
       setSongs(fetchedSongs);
+      //       setSongs(prevSongs => [...prevSongs, ...fetchedSongs]);
       setLoading(false);
     };
 
     loadTasks();
   }, []);
+
+  async function updateSong(filePath: string, updatedSong: Song) {
+    // Call Rust update
+    const val: [boolean, string] = await invoke('update_music_file', { path: filePath, song: updatedSong });
+    if(val[0] == false) {
+      console.log("Save Failed")
+      return val
+    }
+
+    // Update current songs
+    setSongs((prevSongs) =>
+      prevSongs.map((song) =>
+        song.file === filePath ? { ...song, ...updatedSong } : song
+      )
+    );
+
+    console.log("Save Successful")
+    return val
+  }
 
   return (
     <div>
@@ -56,7 +80,8 @@ const Edit = () => {
           // bgColor="bg-violet-500/10"
           />
           <div className="px-4 lg:px-8">
-            <DataTable data={songs} columns={columns} />
+            {/* <Button onClick={() => updateSong("Hello", songs[0])}>Click me</Button> */}
+            <DataTable functions={{ updateSong }} data={songs} columns={columns} totalSongs={Number(totalSongs)} />
           </div>
         </div>
       }

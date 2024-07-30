@@ -50,6 +50,8 @@ fn main() {
             check_directory,
             read_music_directory,
             read_music_directory_paginated,
+            read_music_directory_multithreaded,
+            update_music_file,
             long_job
             // scan_paths
         ])
@@ -156,16 +158,53 @@ async fn return_summary() -> Result<String, ()> {
 }
 
 #[tauri::command]
-fn check_directory(var: String) -> Result<bool, bool> {
-    // println!("Started Directory Check @{}", var.clone());
-    let paths = fs::read_dir(var.clone()).unwrap();
-    for path in paths {
-        let file_name = path.as_ref().unwrap().file_name();
-        if file_name.clone().to_str().unwrap().ends_with(".mp3") {
-            return Ok(true);
+fn check_directory(var: String) -> Result<(bool, usize), (bool, String)> {
+    let paths = fs::read_dir(&var);
+    
+    match paths {
+        Ok(entries) => {
+            let mut mp3_count = 0;
+            for entry in entries {
+                match entry {
+                    Ok(path) => {
+                        let file_name = path.file_name();
+                        if let Some(file_str) = file_name.to_str() {
+                            if file_str.ends_with(".mp3") {
+                                mp3_count += 1;
+                            }
+                        }
+                    }
+                    Err(_) => return Err((false, format!("This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped, Failed to read entry in directory: {}", var))),
+                }
+            }
+            Ok((true, mp3_count))
         }
+        Err(_) => Err((false, format!("This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped, Failed to read entry in directory: {}", var))),
     }
-    Ok(false)
+}
+
+#[tauri::command]
+async fn read_music_directory_multithreaded(directory: String) -> Result<Vec<types::EditViewSongMetadata>, String> {
+    let directory_clone = directory.clone();
+    let songs = tokio::task::spawn_blocking(move || {
+        info!("dir: {}", directory_clone);
+        let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
+        let mut id_num = 0;
+        let paths = fs::read_dir(directory_clone.clone()).unwrap();
+        for path in paths {
+            id_num += 1;
+            let file_name = path.as_ref().unwrap().file_name();
+            if file_name.clone().to_str().unwrap().ends_with(".mp3") {
+                let file_path = directory_clone.clone() + "\\" + file_name.to_str().unwrap();
+                match edit::get_details_for_song(&file_path, id_num, file_name.to_str().unwrap()) {
+                    Ok(single_song) => songs.push(single_song),
+                    Err(e) => return Err(e)
+                }
+            }
+        }
+        Ok(songs)
+    }).await.map_err(|e| format!("Task failed: {:?}", e))??;
+    Ok(songs)
 }
 
 #[tauri::command]
@@ -195,13 +234,15 @@ fn read_music_directory_paginated(directory: String, page_number: usize, page_si
 
     let paths = fs::read_dir(directory.clone()).unwrap();
     let mut mp3_paths: Vec<String> = Vec::new();
+    let mut mp3_file_name: Vec<String> = Vec::new();
     
     // Collect all mp3 file paths
     for path in paths {
         let file_name = path.as_ref().unwrap().file_name();
         if file_name.clone().to_str().unwrap().ends_with(".mp3") {
-            let file_path = directory.clone() + "\\" + file_name.to_str().unwrap();
+            let file_path = directory.clone() + "\\" + file_name.clone().to_str().unwrap();
             mp3_paths.push(file_path);
+            mp3_file_name.push(file_name.to_str().unwrap().to_string());
         }
     }
 
@@ -214,13 +255,22 @@ fn read_music_directory_paginated(directory: String, page_number: usize, page_si
     }
 
     for i in start_index..end_index {
-        match edit::get_details_for_song(&mp3_paths[i], 1, &directory) {
+        match edit::get_details_for_song(&mp3_paths[i], i.try_into().unwrap(), &mp3_file_name[i]) {
             Ok(single_song) => songs.push(single_song),
             Err(e) => return Err(e)
         }
     }
 
     Ok(songs)
+}
+
+#[tauri::command]
+fn update_music_file(path: String, song: types::EditViewSongMetadata) -> (bool, String) {
+    info!("dir: {}", path);
+    match edit::edit_song_metadata(song) {
+        Ok(_) => (true, "Successfully Saved Song Details".to_owned()),
+        Err(message) => (false, message)
+    }
 }
 
 // #[derive(Serialize, Deserialize, Clone, Debug)]

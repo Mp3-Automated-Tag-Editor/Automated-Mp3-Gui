@@ -150,7 +150,7 @@ body,
   }
 }
 
-  
+
 .mobile-phone {
   margin: auto;
   margin-top: 40px;
@@ -425,4 +425,14 @@ body,
   to {
     clip-path: inset(0 -34% 0 0)
   }
+}
+
+.image {
+  transition: filter 0.3s ease;
+}
+
+.image-blur:hover {
+  /* -webkit-filter: blur(1.5px);
+  filter: blur(2px); */
+  cursor: pointer;
 }

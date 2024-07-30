@@ -6,19 +6,16 @@ import Image from 'next/image'
 
 import { Button } from "@/components/ui/button"
 import Phone from "@/components/Phone/Phone"
+
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 import {
   Sheet,
@@ -37,30 +34,66 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
-import { songSchema } from "../data/schema"
+import { Song, songSchema } from "../data/schema"
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { useToast } from "@/components/ui/use-toast"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
+  table: any
 }
-
-
 
 export function DataTableRowActions<TData>({
   row,
+  table
 }: DataTableRowActionsProps<TData>) {
   const songDetails = songSchema.parse(row.original)
-  const [openSideBar, setOpenSideBar] = useState<boolean>(false);
+  const [formData, setFormData] = useState<Song>(songDetails);
   const [isOpen, setIsOpen] = useState<boolean>(true);
-  const base64string = 'data:image/png;base64,'+songDetails.imageSrc
-  // var image = new Image();
-  // image.src = 'data:image/png;base64,'+songDetails.imageSrc;
-  // const content = 
+  const [isDialogSystem, setIsDialogSystem] = useState(false)
+  const [openImageDialog, setOpenImageDialog] = useState(false)
+  const base64string = 'data:image/png;base64,' + formData.imageSrc
+  const { toast } = useToast()
+
+  const handleChange = (e: { target: { name: any; value: any } }) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const updateSong = async (e: any) => {
+    //Update Song Request
+    e.preventDefault()
+    console.log("Update Song Request: " + formData)
+    const val = await table.options.meta.handleSongUpdate(formData.file, formData)
+    console.log(formData)
+
+    console.log(val)
+    if (val[0] == false) {
+      toast({
+        title: "Save Failed",
+        description: "Reason: " + val[1],
+      })
+      return
+    }
+
+    toast({
+      title: "Save Successful",
+      description: `Successfully Updated Song ${formData.id} - ${formData.file}`,
+    })
+    return
+  }
+
+  const updateImage = () => {
+
+  }
 
   return (
     <>
@@ -88,89 +121,123 @@ export function DataTableRowActions<TData>({
                 </SheetTitle>
                 <SheetDescription>
                   Make changes to song metadata manually.
-
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="title" className="text-right">
-                        Title
-                      </Label>
-                      <Input id="name" value={songDetails.title} name="title" className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="artist" className="text-right">
-                        Artist
-                      </Label>
-                      <Input id="username" name="artist" value={songDetails.artist} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="album" className="text-right">
-                        Album
-                      </Label>
-                      <Input id="username" name="album" value={songDetails.album} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <Collapsible>
-                      <CollapsibleTrigger onClick={() => setIsOpen(!isOpen)}>Other Craetor fields {isOpen ? "▼" : "⛛"}</CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="grid gap-4 py-4">
+                  <form onSubmit={updateSong}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="title" className="text-right">
+                          Title
+                        </Label>
+                        <Input id="name" value={formData.title} onChange={handleChange} name="title" className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="artist" className="text-right">
+                          Artist
+                        </Label>
+                        <Input id="username" name="artist" value={formData.artist} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="album" className="text-right">
+                          Album
+                        </Label>
+                        <Input id="username" name="album" value={formData.album} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <Collapsible>
+                        <CollapsibleTrigger onClick={() => setIsOpen(!isOpen)}>Other Craetor fields {isOpen ? "▼" : "⛛"}</CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="album" className="text-right">
+                                Album Artist
+                              </Label>
+                              <Input id="username" name="album" value={formData.albumArtist} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                        <CollapsibleContent>
                           <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="album" className="text-right">
-                              Album Artist
+                              Composer
                             </Label>
-                            <Input id="username" name="album" value={songDetails.albumArtist} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                            <Input id="username" name="album" value={formData.composer} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
                           </div>
-                        </div>
-                      </CollapsibleContent>
-                      <CollapsibleContent>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="album" className="text-right">
-                            Composer
-                          </Label>
-                          <Input id="username" name="album" value={songDetails.composer} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="year" className="text-right">
-                        Year
-                      </Label>
-                      <Input id="username" name="year" value={songDetails.year} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="album" className="text-right">
-                        Track
-                      </Label>
-                      <Input id="username" name="track" value={songDetails.track} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="genre" className="text-right">
-                        Disc No.
-                      </Label>
-                      <Input id="username" name="discno" value={songDetails.discno} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="genre" className="text-right">
-                        Genre
-                      </Label>
-                      <Input id="username" name="genre" value={songDetails.genre} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
-                    </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="year" className="text-right">
+                          Year
+                        </Label>
+                        <Input id="username" name="year" value={formData.year} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="album" className="text-right">
+                          Track
+                        </Label>
+                        <Input id="username" name="track" value={formData.track} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="genre" className="text-right">
+                          Disc No.
+                        </Label>
+                        <Input id="username" name="discno" value={formData.discno} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="genre" className="text-right">
+                          Genre
+                        </Label>
+                        <Input id="username" name="genre" value={formData.genre} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="genre" className="text-right">
-                        Comments
-                      </Label>
-                      <Textarea id="username" name="comments" value={songDetails.comments} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="genre" className="text-right">
+                          Comments
+                        </Label>
+                        <Textarea id="username" name="comments" value={formData.comments} onChange={handleChange} className="col-span-3" /> {/*onChange={(e) => handleChange(e)} />*/}
+                      </div>
+                      <Image
+                        // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
+                        src={`/def-album-art.png`}
+                        width={300}
+                        height={300}
+                        alt="Picture of the author"
+                        className="border border-black image-blur"
+                        onClick={() => setOpenImageDialog(!openImageDialog)}
+                      />
+                      <Dialog open={openImageDialog} onOpenChange={setOpenImageDialog}>
+                        <DialogContent className="sm:max-w-[475px]">
+                          <DialogHeader>
+                            <DialogTitle>Choose Album Art</DialogTitle>
+                            <DialogDescription>
+                              Either add an image url from the web, or choose an image file from your system.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+
+                            <div className="grid gap-2">
+                              <Label htmlFor="url">Image URL</Label>
+                              <Input disabled={isDialogSystem} id="url" />
+                            </div>
+                            <center>(or)</center>
+                            <div className="grid gap-2">
+                              <Label htmlFor="system">Choose From System</Label>
+                              <Input disabled={!isDialogSystem} className="cursor-pointer" id="system" type="file" />
+                            </div>
+                          </div>
+                          <DialogFooter className="sm:justify-between">
+                            {/* <Button type="button" variant="secondary">Close</Button> */}
+                            <div className="flex items-center space-x-2">
+                              <Switch id="mode-switch" checked={isDialogSystem} onCheckedChange={setIsDialogSystem} />
+                              <Label htmlFor="mode-switch">{isDialogSystem ? "Image" : "URI"}</Label>
+                            </div>
+                            <Button type="submit">Save</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+
+                      <SheetClose asChild>
+                        <Button type="submit" >Save changes</Button>
+                      </SheetClose>
                     </div>
-                    <Image
-                      src={base64string}
-                      width={300}
-                      height={300}
-                      alt="Picture of the author"
-                      className="border border-black"
-                    />
-                    <Button type="submit">Save changes</Button>
-
-                  </div>
-
+                  </form>
                 </SheetDescription>
 
               </SheetHeader>

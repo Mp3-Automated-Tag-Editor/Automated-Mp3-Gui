@@ -27,15 +27,20 @@ import {
 
 import { DataTablePagination } from "../components/data-table-pagination"
 import { DataTableToolbar } from "../components/data-table-toolbar"
+import { Song } from "../data/schema"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  totalSongs: number
+  functions: any
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  totalSongs,
+  functions
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -65,11 +70,15 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    meta: {
+      handleSongUpdate: (filePath: string, updatedSong: Song) => functions.updateSong(filePath, updatedSong)
+    }
   })
 
   return (
     <div className="space-y-4">
       <DataTableToolbar table={table} />
+      {/* <DataTablePagination table={table} totalSongs={totalSongs}/> */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -120,7 +129,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} totalSongs={totalSongs}/>
     </div>
   )
 }

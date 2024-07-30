@@ -135,7 +135,7 @@ pub struct Classifier<T: Eq + Hash> {
     pub value: T,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EditViewSongMetadata {
     pub id: String,
     pub file: String,

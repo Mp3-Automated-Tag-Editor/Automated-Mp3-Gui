@@ -17,10 +17,12 @@ import {
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>
+  totalSongs: number
 }
 
 export function DataTablePagination<TData>({
   table,
+  totalSongs
 }: DataTablePaginationProps<TData>) {
   const rowsLengthSelected: number = table.getFilteredSelectedRowModel().rows.length
   const rowsLength: number = table.getFilteredRowModel().rows.length
@@ -44,7 +46,7 @@ export function DataTablePagination<TData>({
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
+              {[10, 20, 30, 40, 50, 100].map((pageSize) => (
                 <SelectItem key={pageSize} value={`${pageSize}`}>
                   {pageSize}
                 </SelectItem>

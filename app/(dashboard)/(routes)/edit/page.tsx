@@ -31,6 +31,24 @@ const Edit = () => {
         defaultPath: 'Downloads',
       });
 
+      var msg: [boolean,number] | [boolean,string] = await checkIfDirectoryContainsMusic(selectedPath)
+      let dataAsString: string;
+
+      if (msg[0] === false) {
+        if (typeof msg[1] === "number") {
+          dataAsString = msg[1].toString(); // Convert number to string
+        } else {
+          dataAsString = msg[1]; // It's already a string
+        }
+        setErrorDetails({
+          title: "Invalid Directory!",
+          data: dataAsString,
+          type: 1
+        })
+        setError(true);
+        setDirectory("");
+      }
+
       if (selectedPath) {
         setDirectory(selectedPath);
         setError(false);
@@ -40,22 +58,15 @@ const Edit = () => {
           type: 0
         })
 
+        const totalSongs = msg[1]
+
         // Go to new EditPage
         // var msg = await invoke('read_music_directory', { directory: selectedPath })
         // console.log(msg)
-        router.push(`/edit/editPage?directory=${selectedPath}`)
+        router.push(`/edit/editPage?directory=${selectedPath}&totalSongs=${totalSongs}&pageNo=${1}&pageSize=${10}`)
       } else return;
 
-      if (await checkIfDirectoryContainsMusic(selectedPath) === false) {
-        setErrorDetails({
-          title: "Invalid Directory!",
-          data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped.",
-          type: 1
-        })
-        setError(true);
-        setDirectory("");
-        return;
-      } else return;
+      
 
     } catch (error) {
       console.log(error);
@@ -80,16 +91,18 @@ const Edit = () => {
         })
       } else return;
 
-      if (await checkIfDirectoryContainsMusic(selectedPath) === false) {
-        setErrorDetails({
-          title: "Invalid Directory!",
-          data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped.",
-          type: 1
-        })
-        setError(true);
-        setDirectory("");
-        return;
-      } else return;
+      // var msg: [2] = await checkIfDirectoryContainsMusic(selectedPath)
+
+      // if (msg[0] === false) {
+      //   setErrorDetails({
+      //     title: "Invalid Directory!",
+      //     data: "This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped.",
+      //     type: 1
+      //   })
+      //   setError(true);
+      //   setDirectory("");
+      //   return;
+      // } else return;
 
     } catch (error) {
       console.log(error);
@@ -97,11 +110,7 @@ const Edit = () => {
   }
 
   async function checkIfDirectoryContainsMusic(selectedPath: any) {
-    var msg = await invoke('check_directory', { var: selectedPath })
-      .then((message) => {
-        return message;
-      })
-      .catch((error) => console.error(error));
+    var msg: [boolean,number] | [boolean,string] = await invoke('check_directory', { var: selectedPath })
     return msg;
   }
 
