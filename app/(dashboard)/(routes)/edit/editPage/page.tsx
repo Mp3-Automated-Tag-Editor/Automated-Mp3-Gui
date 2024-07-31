@@ -81,7 +81,7 @@ const Edit = () => {
           />
           <div className="px-4 lg:px-8">
             {/* <Button onClick={() => updateSong("Hello", songs[0])}>Click me</Button> */}
-            <DataTable functions={{ updateSong }} data={songs} columns={columns} totalSongs={Number(totalSongs)} />
+            <DataTable directory={directory ? directory : ""} functions={{ updateSong }} data={songs} columns={columns} totalSongs={Number(totalSongs)} />
           </div>
         </div>
       }

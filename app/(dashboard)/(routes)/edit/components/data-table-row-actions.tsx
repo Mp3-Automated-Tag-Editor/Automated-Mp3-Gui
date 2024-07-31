@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { DialogClose } from "@radix-ui/react-dialog"
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
@@ -57,7 +58,8 @@ export function DataTableRowActions<TData>({
   const [isOpen, setIsOpen] = useState<boolean>(true);
   const [isDialogSystem, setIsDialogSystem] = useState(false)
   const [openImageDialog, setOpenImageDialog] = useState(false)
-  const base64string = 'data:image/png;base64,' + formData.imageSrc
+  const [imageData, setImageData] = useState<string>(formData.imageSrc)
+  const base64string = 'data:image/png;base64,' + imageData
   const { toast } = useToast()
 
   const handleChange = (e: { target: { name: any; value: any } }) => {
@@ -66,6 +68,37 @@ export function DataTableRowActions<TData>({
       ...formData,
       [name]: value,
     });
+  };
+
+  const handleImageChange = async (event: { target: { value: any } }) => {
+    const url = event.target.value;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImageData(reader.result.split(',')[1]);
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error('Error fetching image:', error);
+    }
+  };
+
+  const handleFileChange = (event: { target: { files: any } }) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImageData(reader.result.split(',')[1]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const updateSong = async (e: any) => {
@@ -92,7 +125,10 @@ export function DataTableRowActions<TData>({
   }
 
   const updateImage = () => {
-
+    setFormData({
+      ...formData,
+      imageSrc: imageData,
+    })
   }
 
   return (
@@ -195,7 +231,7 @@ export function DataTableRowActions<TData>({
                       </div>
                       <Image
                         // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
-                        src={`/def-album-art.png`}
+                        src={formData.imageSrc ? `data:image/png;base64,${formData.imageSrc}` : `/def-album-art.png`}
                         width={300}
                         height={300}
                         alt="Picture of the author"
@@ -203,23 +239,33 @@ export function DataTableRowActions<TData>({
                         onClick={() => setOpenImageDialog(!openImageDialog)}
                       />
                       <Dialog open={openImageDialog} onOpenChange={setOpenImageDialog}>
-                        <DialogContent className="sm:max-w-[475px]">
+                        <DialogContent className="sm:max-w-[675px]">
                           <DialogHeader>
                             <DialogTitle>Choose Album Art</DialogTitle>
                             <DialogDescription>
                               Either add an image url from the web, or choose an image file from your system.
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="grid gap-4 py-4">
-
+                          <div className="grid grid-cols-2 gap-4 py-4">
                             <div className="grid gap-2">
-                              <Label htmlFor="url">Image URL</Label>
-                              <Input disabled={isDialogSystem} id="url" />
+                              <div className="grid gap-2">
+                                <Label htmlFor="url">Image URL</Label>
+                                <Input onChange={handleImageChange} disabled={isDialogSystem} id="url" />
+                              </div>
+                              <center>(or)</center>
+                              <div className="grid gap-2">
+                                <Label htmlFor="system">Choose From System</Label>
+                                <Input onChange={handleFileChange} accept="image/*" disabled={!isDialogSystem} className="cursor-pointer" id="system" type="file" />
+                              </div>
                             </div>
-                            <center>(or)</center>
-                            <div className="grid gap-2">
-                              <Label htmlFor="system">Choose From System</Label>
-                              <Input disabled={!isDialogSystem} className="cursor-pointer" id="system" type="file" />
+                            <div className="flex justify-center items-center">
+                              <Image
+                                src={imageData ? base64string : `/def-album-art.png`}
+                                width={250}
+                                height={250}
+                                alt="Album Art Preview"
+                                className="border border-black"
+                              />
                             </div>
                           </div>
                           <DialogFooter className="sm:justify-between">
@@ -228,7 +274,9 @@ export function DataTableRowActions<TData>({
                               <Switch id="mode-switch" checked={isDialogSystem} onCheckedChange={setIsDialogSystem} />
                               <Label htmlFor="mode-switch">{isDialogSystem ? "Image" : "URI"}</Label>
                             </div>
-                            <Button type="submit">Save</Button>
+                            <DialogClose>
+                              <Button type="submit" onClick={updateImage}>Save</Button>
+                            </DialogClose>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>

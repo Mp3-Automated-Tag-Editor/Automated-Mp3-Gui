@@ -34,13 +34,15 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   totalSongs: number
   functions: any
+  directory: string
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   totalSongs,
-  functions
+  functions,
+  directory
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -77,7 +79,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar table={table} directory={directory} />
       {/* <DataTablePagination table={table} totalSongs={totalSongs}/> */}
       <div className="rounded-md border">
         <Table>

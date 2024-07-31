@@ -28,19 +28,19 @@ export function PresetSelector({ presets, ...props }: PresetSelectorProps) {
           // className="ml-auto hidden h-8 lg:flex"
           variant="outline"
           role="combobox"
-          aria-label="Load a preset..."
+          aria-label="Load a saved edit session..."
           aria-expanded={open}
           className="ml-auto hidden h-8 lg:flex flex-1 justify-between md:max-w-[400px] truncate"
         >
-          {selectedPreset ? selectedPreset.name : "Load a preset..."}
+          {selectedPreset ? selectedPreset.name : "Load a saved edit session..."}
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
         <Command>
-          <CommandInput placeholder="Search presets..." />
+          <CommandInput placeholder="Search sessions..." />
           <CommandList>
-            <CommandEmpty>No presets found.</CommandEmpty>
+            <CommandEmpty>No sessions found.</CommandEmpty>
             <CommandGroup heading="Examples">
               {presets.map((preset) => (
                 <CommandItem
@@ -61,11 +61,6 @@ export function PresetSelector({ presets, ...props }: PresetSelectorProps) {
                   />
                 </CommandItem>
               ))}
-            </CommandGroup>
-            <CommandGroup className="pt-0">
-              <CommandItem onSelect={() => router.push("/examples")}>
-                More examples
-              </CommandItem>
             </CommandGroup>
           </CommandList>
         </Command>

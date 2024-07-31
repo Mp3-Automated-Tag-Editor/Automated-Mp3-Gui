@@ -2,10 +2,12 @@ use base64::encode;
 use lofty::tag::{Accessor, TagType, ItemKey, Tag};
 use lofty::picture::{Picture, PictureType};
 use lofty::probe::Probe;
+use log::{debug, warn};
 use std::path::Path;
 use lofty::file::TaggedFileExt;
 use lofty::tag::TagExt;
 use lofty::config::WriteOptions;
+use lofty::picture::MimeType;
 
 use crate::types::{self, EditViewSongMetadata};
 
@@ -129,15 +131,18 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
 
     // Handle image data if present
     if !song.imageSrc.is_empty() {
-        let image_data = base64::decode(song.imageSrc).map_err(|e| e.to_string())?;
-        let picture = Picture::new_unchecked(
+        debug!("[ENTER][UpdateImage] - updating Image");
+        let image_data: Vec<u8> = base64::decode(song.imageSrc).map_err(|e| e.to_string())?;
+        let picture: Picture = Picture::new_unchecked(
             PictureType::CoverFront,
-            Some(lofty::picture::MimeType::Png),
-            Some("Cover Art".to_string()),
+            Some(MimeType::Png),
+            None,
             image_data
         );
         tag.set_picture(0, picture);
     }
+
+    warn!(" HELP {:?}", tag.pictures());
 
     let val = match tag.save_to_path(&song.path, WriteOptions::default()) {
         Ok(_) => Ok(()),
