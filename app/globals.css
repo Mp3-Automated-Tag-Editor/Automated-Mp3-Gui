@@ -113,10 +113,10 @@ body,
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 75%;
+  width: 68%;
   height: 30px;
   font-size: 14px;
-  margin-left: 380px;
+  /* margin-left: 380px; */
 }
 
 .loader {

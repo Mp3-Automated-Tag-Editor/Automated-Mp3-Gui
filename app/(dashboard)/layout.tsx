@@ -1,25 +1,29 @@
-import Navbar from "@/components/navbar";
-import { Sidebar } from "@/components/sidebar";
-import TitleBar from "@/components/titlebar";
+"use client"
+
+import Sidebar from "@/components/sidebar";
+import { useState } from "react";
 // import { checkSubscription } from "@/lib/subscription";
 // import { getApiLimitCount } from "@/lib/api-limit";
 
-const DashboardLayout = async ({
+const DashboardLayout = ({
   children,
 }: {
   children: React.ReactNode
 }) => {
   // const apiLimitCount = await getApiLimitCount();
   // const isPro = await checkSubscription();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
   return (
     // <div className="h-full relative">
     <>
-      <div className="relative hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-80 bg-gray-900 z-10">
-        <Sidebar />
+      <div className={`relative h-full md:flex md:flex-col md:fixed md:inset-y-0 z-80 z-10 transition-all duration-300 ${isSidebarOpen ? 'md:w-72' : 'md:w-[68px]'}`}>
+        <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       </div>
-      {/* <Navbar /> */}
-      <main className="md:pl-72 py-12">
+      <main className={`py-12 transition-all duration-300 ${isSidebarOpen ? 'md:pl-72' : 'md:pl-20'}`}>
         {children}
       </main>
     </>

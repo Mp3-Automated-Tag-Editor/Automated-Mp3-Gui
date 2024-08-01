@@ -5,7 +5,7 @@ import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sidebar } from "@/components/sidebar";
+import Sidebar from "@/components/sidebar";
 
 export const MobileSidebar = (
   // {
@@ -26,6 +26,12 @@ export const MobileSidebar = (
     return null;
   }
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <Sheet>
       <SheetTrigger>
@@ -35,7 +41,7 @@ export const MobileSidebar = (
       </SheetTrigger>
       <SheetContent side="left" className="p-0">
         {/* <Sidebar isPro={isPro} apiLimitCount={apiLimitCount} /> */}
-        <Sidebar />
+        <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       </SheetContent>
     </Sheet>
   );

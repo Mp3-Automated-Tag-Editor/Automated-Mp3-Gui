@@ -85,7 +85,7 @@ export const columns: ColumnDef<Song>[] = [
     cell: ({ row }) => {
       return (
         <div className="flex space-x-2">
-          <span className="max-w-[500px] min-w-[250px] truncate font-medium">
+          <span className="max-w-[500px] min-w-[250px] truncate">
             {row.getValue("title")}
           </span>
         </div>
