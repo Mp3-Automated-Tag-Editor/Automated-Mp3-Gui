@@ -121,7 +121,7 @@ const Edit = () => {
         description="Manually edit Music Metadata (In case our classifiers can&apos;t figure out your song)."
         icon={Pencil}
         iconColor="text-orange-700"
-        otherProps="mb-4"
+        otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
       <div className="px-4 lg:px-8 flex justify-center items-center">

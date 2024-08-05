@@ -59,23 +59,29 @@ const Start = () => {
   return (
     <div>
       <Heading
-        title="Download"
-        description="Download Mp3 Songs directly converted from YouTube and AudioMack."
+        title="Stream & Connect"
+        description="Stream your favourite music on mobile through the Auto-Mp3 App!"
         icon={Download}
         iconColor="text-pink-700"
         otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
+      <div className="justify-center align-middle">
+      </div>
+
       <div className="px-4 lg:px-8">
         <div>
           <div className="rounded-lg 
-                border 
+                 
                 w-full 
                 p-4 
                 px-3 
                 md:px-6 
                 focus-within:shadow-sm">
-            <h5 className="text-l font-bold">Some Points to Note:</h5>
+            {/* border - add this to the above CSS */}
+            <span className="coming-soon"><center>Coming Soon</center></span>
+
+            {/* <h5 className="text-l font-bold">Some Points to Note:</h5>
             <p className="text-sm py-4">
               <ol>
                 <li>1. Make sure to select a directory which contains Mp3 files only.</li>
@@ -99,7 +105,7 @@ const Start = () => {
               <Button className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
                 Start
               </Button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

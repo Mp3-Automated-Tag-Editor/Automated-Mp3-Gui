@@ -1,13 +1,14 @@
 use base64::encode;
-use lofty::tag::{Accessor, TagType, ItemKey, Tag};
+use lofty::config::WriteOptions;
+use lofty::file::TaggedFileExt;
+use lofty::picture::MimeType;
 use lofty::picture::{Picture, PictureType};
 use lofty::probe::Probe;
+use lofty::tag::TagExt;
+use lofty::tag::{Accessor, ItemKey, Tag, TagType};
 use log::{debug, warn};
 use std::path::Path;
-use lofty::file::TaggedFileExt;
-use lofty::tag::TagExt;
-use lofty::config::WriteOptions;
-use lofty::picture::MimeType;
+use std::fs;
 
 use crate::types::{self, EditViewSongMetadata};
 
@@ -47,7 +48,12 @@ use crate::types::{self, EditViewSongMetadata};
 //     Ok(songs)
 // }
 
-pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Result<types::EditViewSongMetadata, String> { //(directory: &str)
+pub fn get_details_for_song(
+    complete_path: &str,
+    id: u32,
+    file_name: &str,
+) -> Result<types::EditViewSongMetadata, String> {
+    //(directory: &str)
     // let path_str = "G:/Music/Editing Completed Songs (Ready for download)/[Cleaned Up] John Mayer - Everything You'll Ever Be (Hotel Bathroom Song) (2023_05_23 13_29_06 UTC).mp3";
     let path = Path::new(&complete_path);
 
@@ -71,7 +77,7 @@ pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Re
     let image_data = tag.pictures().get(0);
     let base64_image_string = match image_data {
         Some(data) => encode(data.data()),
-        None => "".to_owned()
+        None => "".to_owned(),
     };
 
     // let base64_image_string = match image_data {
@@ -86,16 +92,40 @@ pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Re
         artist: tag.artist().as_deref().unwrap_or("None").to_string(),
         title: tag.title().as_deref().unwrap_or("None").to_string(),
         album: tag.album().as_deref().unwrap_or("None").to_string(),
-        year: tag.get_string(&ItemKey::Year).unwrap_or("0").parse::<u32>().unwrap(),
-        track: tag.get_string(&ItemKey::TrackNumber).unwrap_or("0").parse::<u32>().unwrap(),
-        genre: tag.get_string(&ItemKey::Genre).unwrap_or("None").to_string(),
-        comments: tag.get_string(&ItemKey::Comment).unwrap_or("None").to_string(),
-        albumArtist: tag.get_string(&ItemKey::AlbumArtist).unwrap_or("None").to_string(),
-        composer: tag.get_string(&ItemKey::Composer).unwrap_or("None").to_string(),
-        discno: tag.get_string(&ItemKey::DiscNumber).unwrap_or("0").parse::<u32>().unwrap(),
+        year: tag
+            .get_string(&ItemKey::Year)
+            .unwrap_or("0")
+            .parse::<u32>()
+            .unwrap(),
+        track: tag
+            .get_string(&ItemKey::TrackNumber)
+            .unwrap_or("0")
+            .parse::<u32>()
+            .unwrap(),
+        genre: tag
+            .get_string(&ItemKey::Genre)
+            .unwrap_or("None")
+            .to_string(),
+        comments: tag
+            .get_string(&ItemKey::Comment)
+            .unwrap_or("None")
+            .to_string(),
+        albumArtist: tag
+            .get_string(&ItemKey::AlbumArtist)
+            .unwrap_or("None")
+            .to_string(),
+        composer: tag
+            .get_string(&ItemKey::Composer)
+            .unwrap_or("None")
+            .to_string(),
+        discno: tag
+            .get_string(&ItemKey::DiscNumber)
+            .unwrap_or("0")
+            .parse::<u32>()
+            .unwrap(),
         imageSrc: base64_image_string,
         percentage: 0,
-        status: "edit".to_owned()
+        status: "edit".to_owned(),
     };
 
     Ok(song)
@@ -103,6 +133,7 @@ pub fn get_details_for_song(complete_path: &str, id: u32, file_name: &str) -> Re
 
 pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
     let path = Path::new(&song.path);
+    let new_filename = format!("{} - {}.mp3", &song.artist, &song.title);
 
     if !path.is_file() {
         return Err("ERROR: Path is not a file!".to_string());
@@ -137,17 +168,30 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
             PictureType::CoverFront,
             Some(MimeType::Png),
             None,
-            image_data
+            image_data,
         );
         tag.set_picture(0, picture);
     }
 
-    warn!(" HELP {:?}", tag.pictures());
-
-    let val = match tag.save_to_path(&song.path, WriteOptions::default()) {
+    let mut val = match tag.save_to_path(&song.path, WriteOptions::default()) {
         Ok(_) => Ok(()),
         Err(error_value) => Err(error_value.to_string())
     };
+
+    if val.is_err() {
+        return val;
+    }
+
+    let mut tag = id3::Tag::read_from_path(&song.path).unwrap();
+
+    val = match tag.write_to_path(&song.path, id3::Version::Id3v23) {
+        Ok(_) => Ok(()),
+        Err(error_value) => Err(error_value.to_string())
+    };
+
+    // Rename the file
+    let new_path = path.with_file_name(new_filename);
+    fs::rename(path, &new_path).map_err(|e| e.to_string())?;
 
     val
 }

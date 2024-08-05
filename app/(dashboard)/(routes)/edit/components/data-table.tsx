@@ -25,6 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { ScrollArea } from "@/components/ui/scroll-area"
+
 import { DataTablePagination } from "../components/data-table-pagination"
 import { DataTableToolbar } from "../components/data-table-toolbar"
 import { Song } from "../data/schema"
@@ -80,10 +82,9 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       <DataTableToolbar table={table} directory={directory} />
-      {/* <DataTablePagination table={table} totalSongs={totalSongs}/> */}
-      <div className="rounded-md border">
+      <div className="relative overflow-auto rounded-md border lg:h-[63vh] xl:h-[68vh]">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-white z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -131,7 +132,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} totalSongs={totalSongs}/>
+      <DataTablePagination table={table} totalSongs={totalSongs} />
     </div>
   )
 }

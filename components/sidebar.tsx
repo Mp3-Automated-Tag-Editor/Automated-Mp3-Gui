@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Montserrat } from 'next/font/google';
-import { Play, Info, LayoutDashboard, Music, Settings2, Download, Pencil, AlignJustify, X } from "lucide-react";
+import { AudioLines, Play, Info, LayoutDashboard, Music, Settings2, Download, Pencil, AlignJustify, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -29,6 +29,12 @@ const routes = [
     icon: Download,
     color: "text-pink-700",
     href: '/download',
+  },
+  {
+    label: 'Stream & Connect',
+    icon: AudioLines,
+    color: "text-blue-700",
+    href: '/stream',
   },
   {
     label: 'Edit',
@@ -61,7 +67,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
           </div>
         </Link> */}
         <Link href="/dashboard" className="whitespace-nowrap duration-300 flex justify-center p-3 w-full pl-3 mb-4">
-          <div className={`relative align-baseline rounded-lg transition-all duration-500 ease-in-out ${isSidebarOpen ? "h-20 w-40" : "h-10 w-10 mb-10"}`}>
+          <div className={`relative align-baseline rounded-lg transition-all duration-500 ease-in-out ${isSidebarOpen ? "h-20 w-44" : "h-10 w-10 mb-10"}`}>
             {isSidebarOpen ? (
               <Image fill alt="Logo" src="/1.png" className="object-cover transition-opacity duration-300 ease-in-out" />
             ) : (

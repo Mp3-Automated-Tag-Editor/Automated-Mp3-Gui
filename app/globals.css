@@ -436,3 +436,8 @@ body,
   filter: blur(2px); */
   cursor: pointer;
 }
+
+.coming-soon {
+  color: lightgrey;
+  font-size: 2em; /* Adjust the font size as needed */
+}

@@ -1,4 +1,4 @@
-import { Download, Music, Pencil, Play, Settings2 } from "lucide-react";
+import { Download, AudioLines, Music, Pencil, Play, Settings2 } from "lucide-react";
 
 export const MAX_FREE_SONGS = 100;
 
@@ -16,6 +16,13 @@ export const tools = [
     color: "text-pink-700",
     href: '/download',
     bgColor: "bg-pink-700/10",
+  },
+  {
+    label: 'Stream & Connect',
+    icon: AudioLines,
+    color: "text-blue-700",
+    href: '/stream',
+    bgColor: "bg-blue-700/10",
   },
   {
     label: 'Edit',
