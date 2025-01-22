@@ -44,6 +44,12 @@ const ConfigsProvider: FC<ProviderPorps> = (props) => {
                         "test": "test",
                         "threads": 1,
                         "developerSettings": false,
+                        "spotify": true,
+                        "palm": true,
+                        "ytmusic": true,
+                        "itunes": true,
+                        "genius": true,
+                        "groq": true
                     }
                 );
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Montserrat } from 'next/font/google';
-import { AudioLines, Play, Info, LayoutDashboard, Music, Settings2, Download, Pencil, AlignJustify, X } from "lucide-react";
+import { AudioLines, Play, Info, LayoutDashboard, Music, Settings2, BarChartHorizontalIcon, Download, Pencil, AlignJustify, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -48,6 +48,12 @@ const routes = [
     color: "text-green-700",
     href: '/music',
   },
+  {
+    label: 'Statistics',
+    icon: BarChartHorizontalIcon,
+    color: "text-yellow-700",
+    href: '/stats',
+  }
   // {
   //   label: 'Settings',
   //   icon: Settings2,

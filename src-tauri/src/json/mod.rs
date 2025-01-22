@@ -3,14 +3,14 @@ use std::path::Path;
 use std::io::Write;
 use std::fs::OpenOptions;
 
-// Check if a database file exists, and create one if it does not.
+// Check if a Settings file exists, and create one if it does not.
 pub fn init() {
     if !settings_file_exists() {
         create_settings_file();
     }
 }
 
-// Create the database file.
+// Create the Settings file.
 fn create_settings_file() {
     let settings_path = get_settings_path();
     let settings_dir = Path::new(&settings_path).parent().unwrap();
@@ -20,17 +20,11 @@ fn create_settings_file() {
         fs::create_dir_all(settings_dir).unwrap();
     }
 
-    // Create the database file.
+    // Create the Settings file.
     fs::File::create(&settings_path).unwrap();
 
     //Add data to this file
-    let data = r#"
-    {
-        "threads": 2,
-        "test": "test",
-        "developerSettings": false
-    }
-    "#;
+    let data = r#"{"threads":2,"test":"test","developerSettings":true,"spotify":true,"palm":true,"ytmusic":true,"itunes":true,"genius":true,"groq":true}"#;
     let j = serde_json::to_string(&data);
     // println!("{:?} From Initial func", j);
     let mut f = OpenOptions::new().write(true).truncate(true).open(settings_path).expect("Unable to create file");

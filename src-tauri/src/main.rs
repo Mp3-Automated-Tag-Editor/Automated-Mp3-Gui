@@ -127,7 +127,9 @@ async fn start_scrape_process<R: Runtime>(
     let file_names = db::get_file_names(path_var.clone()).await;
     let file_paths = db::get_file_paths(path_var).await;
 
-    let num_workers = 1;
+    let settings_data = get_settings_data();
+
+    let num_workers = settings_data.clone().threads as usize;
 
     let start_time = std::time::Instant::now();
     threading::prepare_execution();
@@ -137,6 +139,7 @@ async fn start_scrape_process<R: Runtime>(
         file_paths.unwrap(),
         num_workers,
         db::get_db_path(),
+        settings_data
     );
     let elapsed_time = start_time.elapsed();
 

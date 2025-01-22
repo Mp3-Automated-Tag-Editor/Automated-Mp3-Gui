@@ -1,4 +1,4 @@
-import { Download, AudioLines, Music, Pencil, Play, Settings2 } from "lucide-react";
+import { Download, AudioLines, Music, BarChartHorizontalIcon, LineChart, Pencil, Play, Settings2 } from "lucide-react";
 
 export const MAX_FREE_SONGS = 100;
 
@@ -37,6 +37,13 @@ export const tools = [
     color: "text-green-700",
     bgColor: "bg-green-700/10",
     href: '/music',
+  },
+  {
+    label: 'Statistics',
+    icon: BarChartHorizontalIcon,
+    color: "text-yellow-700",
+    bgColor: "bg-yellow-700/10",
+    href: '/stats',
   },
   {
     label: 'Settings',

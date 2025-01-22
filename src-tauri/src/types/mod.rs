@@ -1,12 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, hash::Hash};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
-    threads: i32,
-    test: String,
-    developer_settings: bool,
+    pub threads: i32,
+    pub test: String,
+    pub developer_settings: bool,
+    pub spotify: bool,
+    pub palm: bool,
+    pub ytmusic: bool,
+    pub itunes: bool,
+    pub genius: bool,
+    pub groq: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,7 +45,7 @@ pub struct Packet<'a>  {
     pub songName: &'a str,
     pub statusCode: u32, // 3xx for processing, 2xx for successful, 4xx for failure from Desktop, 5xx for Server failure
     pub errorMessage: &'a str,
-    pub accuracy: u32
+    pub accuracy: f32
 }
 
 #[derive(Serialize, Deserialize, Debug)]
