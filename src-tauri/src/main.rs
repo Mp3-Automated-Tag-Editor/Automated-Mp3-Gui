@@ -28,7 +28,6 @@ use log::warn;
 fn main() {
     std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
-
     dotenv().ok();
 
     trace!(

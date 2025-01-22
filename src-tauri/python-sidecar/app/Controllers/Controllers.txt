@@ -1,0 +1,26 @@
+amazonMusic
+appleMusic
+TheAudioDb
+deezer
+echonest
+pandora
+soundCloud
+spotify - done
+tidal
+youtube
+youtubeMusic - done
+genius - done
+napster
+qobuz
+qqMusic
+yandexMusic
+vkMusic
+anghami
+zvuk
+gaana
+jiosaavn
+resso
+boomplay
+palm - done
+wikipedia
+google search
