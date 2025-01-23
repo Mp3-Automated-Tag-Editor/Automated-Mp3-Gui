@@ -35,6 +35,7 @@ const Edit = () => {
   const pageNo: string | null = searchParams.get('pageNo');
   const pageSize: string | null = searchParams.get('pageSize');
   const totalSongs: string | null = searchParams.get('totalSongs');
+  const session: string | null = searchParams.get('session');
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -72,8 +73,8 @@ const Edit = () => {
       {loading ? <Loading msg="Loading your Music Database..." /> :
         <div>
           <Heading
-            title="Edit"
-            description={`Manually edit Music Files in Directory: ${directory}`}
+            title={session!=null ? "Edit Session" : "Edit Music Files"}
+            description={`Manually edit Music Files in Directory: ${directory} (Session: ${session})`}
             icon={Pencil}
             iconColor="text-orange-700"
             otherProps="mb-4"

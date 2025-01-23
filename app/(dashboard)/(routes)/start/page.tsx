@@ -20,7 +20,7 @@ import { invoke } from '@tauri-apps/api/tauri'
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import Dialog from "@/components/dialog";
+import { Dialog } from "@/components/dialog";
 import Alert from "@/components/alert";
 import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
 import { array, boolean, number, z } from "zod";

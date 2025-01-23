@@ -13,6 +13,17 @@ export interface Packet {
     accuracy: number
 }
 
+export interface ScrapeResult {
+    status: Status,
+    statusCode: number,
+    errorMessage: string,
+    overallAccuracy: number,
+    sessionName: string,
+    totalFiles: number,
+    processedFiles: number,
+    time: number
+}
+
 export interface Seperator {
     id: number,
     type: number

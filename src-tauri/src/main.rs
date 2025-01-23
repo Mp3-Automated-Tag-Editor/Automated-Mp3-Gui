@@ -52,7 +52,8 @@ fn main() {
             read_music_directory_paginated,
             read_music_directory_multithreaded,
             update_music_file,
-            long_job
+            long_job,
+            retrieve_all_sessions
             // scan_paths
         ])
         .setup(|app| {
@@ -125,26 +126,24 @@ async fn start_scrape_process<R: Runtime>(
     path_var: String,
 ) -> Result<u32, ()> {
     let file_names = db::get_file_names(path_var.clone()).await;
-    let file_paths = db::get_file_paths(path_var).await;
+    let file_paths = db::get_file_paths(path_var.clone()).await;
 
     let settings_data = get_settings_data();
 
     let num_workers = settings_data.clone().threads as usize;
 
-    let start_time = std::time::Instant::now();
     threading::prepare_execution();
-    threading::threaded_execution(
+    let res = threading::threaded_execution(
         window,
         file_names.unwrap(),
         file_paths.unwrap(),
         num_workers,
         db::get_db_path(),
-        settings_data
+        settings_data,
+        path_var.as_str()
     );
-    let elapsed_time = start_time.elapsed();
 
-    info!("Threaded Execution Time: {:?}", elapsed_time);
-    Ok(elapsed_time.as_secs().try_into().unwrap())
+    Ok(res.unwrap())
 }
 
 #[tauri::command]
@@ -265,6 +264,14 @@ fn read_music_directory_paginated(directory: String, page_number: usize, page_si
     }
 
     Ok(songs)
+}
+
+
+#[tauri::command]
+fn retrieve_all_sessions() -> Result<Vec<types::Session>, String> {
+    info!("Retrieving all sessions");
+    let sessions = db::retrieve_all_sessions();
+    Ok(sessions.unwrap())
 }
 
 #[tauri::command]

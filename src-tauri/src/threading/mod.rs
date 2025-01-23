@@ -2,15 +2,15 @@ use log::{error, info};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use reqwest;
+use reqwest::blocking::Client;
 use rusqlite::params;
+use serde_json::json;
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::Runtime;
-use reqwest::blocking::Client;
-use serde_json::json;
 
 /*
 TODO:
@@ -21,9 +21,16 @@ TODO:
 */
 
 use crate::db;
-use crate::types::{self, ApiResponse, Packet};
+use crate::types::{self, ApiResponse, Packet, ScrapeResult};
 
 static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
+
+// Thread-safe global variables
+lazy_static::lazy_static! {
+    static ref OVERALL_ACCURACY: Arc<Mutex<f32>> = Arc::new(Mutex::new(0.0));
+    static ref TOTAL_FILES: AtomicU32 = AtomicU32::new(0);
+    static ref PROCESSED_FILES: AtomicU32 = AtomicU32::new(0);
+}
 
 pub fn stop_execution() {
     SHOULD_STOP.store(true, Ordering::Relaxed);
@@ -41,6 +48,7 @@ fn make_api_call<R: Runtime>(
     id: u32,
     db_pool: &Arc<Mutex<Pool<SqliteConnectionManager>>>,
     settings_data: types::Settings,
+    directory: &str
 ) {
     // Perform a POST request using reqwest
     let client = Client::new();
@@ -80,6 +88,8 @@ fn make_api_call<R: Runtime>(
         )
         .unwrap();
 
+    TOTAL_FILES.fetch_add(1, Ordering::Relaxed);
+
     thread::sleep(Duration::from_secs(2));
 
     // Acquire a database connection from the pool
@@ -91,6 +101,8 @@ fn make_api_call<R: Runtime>(
 
     info!("Request from {}, thread {}", endpoint, i);
     let mut overall_accuracy: f32 = 0.0;
+    // let mut accuracy_guard = OVERALL_ACCURACY.lock().unwrap();
+
     let data = json!({
         "searchParams": {
             "spotify": settings_data.spotify,
@@ -132,14 +144,33 @@ fn make_api_call<R: Runtime>(
                         }
                     };
 
-                overall_accuracy = format!("{:.2}", (api_response.result.calls.successfulQueries as f32) / (api_response.result.calls.totalQueries) as f32 * 100.0)
+                overall_accuracy = format!(
+                    "{:.2}",
+                    (api_response.result.calls.successfulQueries as f32)
+                        / (api_response.result.calls.totalQueries) as f32
+                        * 100.0
+                )
                 .parse()
                 .unwrap();
 
+                PROCESSED_FILES.fetch_add(1, Ordering::Relaxed);
+                let mut accuracy_guard = match OVERALL_ACCURACY.lock() {
+                    Ok(mut accuracy_guard) => {
+                        *accuracy_guard += overall_accuracy; // Example modification
+                    }
+                    Err(poisoned) => {
+                        error!("Mutex poisoned: {:?}", poisoned);
+                        let mut accuracy_guard = poisoned.into_inner(); // Recover the data
+                        *accuracy_guard += overall_accuracy; // Example modification
+                    }
+                };
+                // *accuracy_guard += overall_accuracy;
+
                 let query = format!(
-                    "INSERT INTO {} (
+                    "INSERT OR REPLACE INTO {} (
                         file_name, 
                         path, 
+                        directory,
                         title, 
                         artist, 
                         album, 
@@ -157,36 +188,47 @@ fn make_api_call<R: Runtime>(
                         totalMechanismCalls,
                         totalSuccessfulQueries,
                         album_art
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
                     db::latest_session().unwrap()
                 );
 
-                let _ = db_conn.execute(&query, params![
-                                    endpoint,
-                                    path,
-                                    api_response.result.title,
-                                    api_response.result.artist,
-                                    api_response.result.data.album.value,
-                                    api_response.result.data.year.value,
-                                    api_response.result.data.track.value,
-                                    api_response.result.data.genre.value,
-                                    api_response.result.data.comments.value,
-                                    api_response.result.data.albumArtist.value,
-                                    api_response.result.data.composer.value,
-                                    api_response.result.data.discno.value,
-                                    api_response.result.calls.successfulMechanismCalls,
-                                    api_response.result.calls.successfulMechanismCalls,
-                                    api_response.result.calls.successfulQueries,
-                                    api_response.result.calls.totalMechanismCalls,
-                                    api_response.result.calls.totalMechanismCalls,
-                                    api_response.result.calls.totalQueries,
-                                    path
-                                ])
+                let _ = db_conn
+                    .execute(
+                        &query,
+                        params![
+                            endpoint,
+                            path,
+                            directory,
+                            api_response.result.title,
+                            api_response.result.artist,
+                            api_response.result.data.album.value,
+                            api_response.result.data.year.value,
+                            api_response.result.data.track.value,
+                            api_response.result.data.genre.value,
+                            api_response.result.data.comments.value,
+                            api_response.result.data.albumArtist.value,
+                            api_response.result.data.composer.value,
+                            api_response.result.data.discno.value,
+                            api_response.result.calls.successfulMechanismCalls,
+                            api_response.result.calls.successfulMechanismCalls,
+                            api_response.result.calls.successfulQueries,
+                            api_response.result.calls.totalMechanismCalls,
+                            api_response.result.calls.totalMechanismCalls,
+                            api_response.result.calls.totalQueries,
+                            path
+                        ],
+                    )
                     .expect("Error Inserting data");
                 info!("Inserted data into the database");
                 info!("Data Accuracy: {}", overall_accuracy);
-                info!("api_response.result.calls.successfulQueries: {:?}", api_response.result.calls.successfulQueries);
-                info!("api_response.result.calls.totalQueries: {:?}", api_response.result.calls.totalQueries);
+                info!(
+                    "api_response.result.calls.successfulQueries: {:?}",
+                    api_response.result.calls.successfulQueries
+                );
+                info!(
+                    "api_response.result.calls.totalQueries: {:?}",
+                    api_response.result.calls.totalQueries
+                );
             } else {
                 error!(
                     "Unsuccessful response from {}, thread {}: {:?}",
@@ -223,7 +265,10 @@ pub fn threaded_execution<R: Runtime>(
     num_workers: usize,
     db_path: String,
     settings_data: types::Settings,
-) {
+    directory: &str
+) -> Result<u32, ()> {
+    let start_time = std::time::Instant::now();
+
     // Initialize the database pool
     let db_manager = SqliteConnectionManager::file(db_path);
     let db_pool = Arc::new(Mutex::new(
@@ -234,6 +279,7 @@ pub fn threaded_execution<R: Runtime>(
     let endpoints_arc = Arc::new(Mutex::new(endpoints));
     let paths_arc = Arc::new(Mutex::new(paths));
     let settings_arc = Arc::new(Mutex::new(settings_data));
+    let direcotry_arc = Arc::new(Mutex::new(directory.to_string()));
 
     for i in 0..num_workers {
         let win = window.clone();
@@ -241,6 +287,7 @@ pub fn threaded_execution<R: Runtime>(
         let paths_clone = Arc::clone(&paths_arc);
         let db_pool_clone = Arc::clone(&db_pool);
         let settings_clone = Arc::clone(&settings_arc);
+        let directory_clone = Arc::clone(&direcotry_arc);
 
         let handle = thread::spawn(move || loop {
             if SHOULD_STOP.load(Ordering::Relaxed) {
@@ -256,6 +303,7 @@ pub fn threaded_execution<R: Runtime>(
                     drop(paths);
 
                     let settings = settings_clone.lock().unwrap().clone();
+                    let directory = directory_clone.lock().unwrap().clone();
 
                     make_api_call(
                         &win,
@@ -265,6 +313,7 @@ pub fn threaded_execution<R: Runtime>(
                         id.try_into().unwrap(),
                         &db_pool_clone,
                         settings,
+                        directory.as_str()
                     );
                 } else {
                     break;
@@ -279,11 +328,40 @@ pub fn threaded_execution<R: Runtime>(
 
     for handle in handles {
         match handle.join() {
-            Ok(_) => {},  // Thread completed successfully
+            Ok(_) => {
+                info!("Thread completed successfully");
+            }
             Err(e) => {
                 error!("Thread failed with error: {:?}", e);
             }
         }
     }
-}
 
+    //Result Summary
+    let elapsed_time = start_time.elapsed();
+    info!("Threaded Execution Time: {:?}", elapsed_time.clone());
+    let total_accuracy =
+        (*OVERALL_ACCURACY.lock().unwrap() / TOTAL_FILES.load(Ordering::Relaxed) as f32) as f32;
+
+
+    window
+        .emit(
+            "scrape_result",
+            ScrapeResult {
+                status: types::Status::SUCCESS,
+                status_code: 200,
+                error_message: "",
+                overall_accuracy: total_accuracy,
+                session_name: db::latest_session().unwrap().as_str(),
+                total_files: TOTAL_FILES.load(Ordering::Relaxed) - 1,
+                processed_files: PROCESSED_FILES.load(Ordering::Relaxed) - 1,
+                time: &elapsed_time.as_secs_f64().to_string(),
+            },
+        )
+        .unwrap();
+
+    info!("Results emitted to the frontend");
+    info!("Accuracy: {}", total_accuracy);
+
+    Ok(elapsed_time.as_secs().try_into().unwrap())
+}

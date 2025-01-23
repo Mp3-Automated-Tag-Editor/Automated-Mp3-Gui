@@ -2,8 +2,10 @@ use chrono::Local;
 use rusqlite::{Connection, Result};
 use std::fs;
 use std::path::Path;
-
+use rand::Rng;
 use log::info;
+
+use crate::types;
 
 pub fn init() {
     if !db_file_exists() {
@@ -53,6 +55,92 @@ pub fn latest_session() -> Result<String> {
     Ok(latest_table.unwrap())
 }
 
+// pub fn get_all_sessions() -> Result<types::Session> {
+//     let conn = Connection::open(get_db_path())?;
+//     let mut latest_table = None;
+//     let today = Local::now().format("%d_%m_%Y").to_string();
+
+//     // Find the latest table (Session) for the day
+//     let mut stmt = conn.prepare(
+//         "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ? ORDER BY name DESC LIMIT 1"
+//     )?;
+//     let pattern = format!("t_{}_session_%", today); // Add 't_' prefix to the pattern
+//     let table_iter = stmt.query_map([&pattern], |row| row.get(0))?;
+
+//     for table in table_iter {
+//         let table_name: String = table.unwrap();
+//         latest_table = Some(table_name);
+//         break;
+//     }
+
+//     Ok(latest_table.unwrap())
+// }
+
+pub fn retrieve_all_sessions() -> Result<Vec<types::Session>> {
+    info!("Hello");
+    let conn = Connection::open(get_db_path())?;
+    let mut sessions = Vec::new();
+    info!("Hello");
+    // Query to find all session tables
+    let mut stmt = conn.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 't_%_session_%' ORDER BY name DESC",
+    )?;
+
+    let table_iter = stmt.query_map([], |row| row.get(0))?;
+
+    for table in table_iter {
+        let table_name: String = table?;
+        // Extract date and session number from the table name
+        if let Some((date, session_number)) = parse_table_name(&table_name) {
+            // Query to get the total and processed files
+            let path = conn.query_row::<String, _, _>(
+                &format!("SELECT directory FROM {} LIMIT 1", table_name),
+                [],
+                |row| row.get(0),
+            ).unwrap_or_default();
+
+            let total_files = conn.query_row::<u32, _, _>(
+                &format!("SELECT COUNT(*) FROM {}", table_name),
+                [],
+                |row| row.get(0),
+            ).unwrap_or(0);
+            let session = types::Session {
+                id: generate_random_id(),
+                table_name: table_name.clone(),
+                date,
+                session_number,
+                custom_name: "".to_string(),
+                path,
+                total_files,
+                processed_files: total_files, // Assuming processed == total
+            };
+
+            info!("Retrieved session: {:?}", session);
+
+            sessions.push(session);
+        }
+    }
+
+    Ok(sessions)
+}
+
+fn parse_table_name(table_name: &str) -> Option<(String, u32)> {
+    // Expect table name format: t_<date>_session_<number>
+    let parts: Vec<&str> = table_name.split('_').collect();
+    if parts.len() >= 4 && parts[0] == "t" && parts[4] == "session" {
+        let date = parts[1].to_string() + "-" + parts[2] + "-" + parts[3];
+        if let Ok(session_number) = parts[5].parse::<u32>() {
+            return Some((date, session_number));
+        }
+    }
+    None
+}
+
+fn generate_random_id() -> String {
+    let mut rng = rand::thread_rng();
+    let id: u128 = rng.gen();
+    id.to_string()
+}
 
 fn manage_table() -> Result<()> {
     let conn = Connection::open(get_db_path())?;
@@ -77,16 +165,27 @@ fn manage_table() -> Result<()> {
     if let Some(latest_table) = latest_table {
         // Check if the latest table is from the same date and has data
         let has_data: bool = conn
-            .prepare(&format!("SELECT EXISTS(SELECT 1 FROM {} LIMIT 1)", latest_table))?
+            .prepare(&format!("SELECT EXISTS(SELECT 1 FROM \"{}\" LIMIT 1)", latest_table))?
             .query_row([], |row| row.get(0))?;
-
         if has_data {
-            session_number+=1;
-            info!("Creating New Session: {}", session_number);
+            // If the latest table has data, create a new table with an incremented session number
+            session_number = latest_table
+                .rsplit('_')
+                .next()
+                .and_then(|n| n.parse::<u32>().ok())
+                .unwrap_or(0)
+                + 1;
         } else {
-            // Drop the latest table if it's empty and create a new one
-            conn.execute(&format!("DROP TABLE {}", latest_table), [])?;
-            info!("Dropped empty table: {}", latest_table);
+            let latest_date = latest_table.split('_').take(3).collect::<Vec<_>>().join("_").get(..).map_or(String::new(), |s| s.to_string());
+            if (latest_date == today) {
+                // If the latest table is from today and has no data, reuse it
+                info!("Reusing existing table without data: {}", latest_table);
+                return Ok(());
+            } else {
+                // If the latest table is from a different day and has no data, drop it
+                conn.execute(&format!("DROP TABLE {}", latest_table), [])?;
+                info!("Dropped empty table from a different day: {}", latest_table);
+            }
         }
     }
 
@@ -108,6 +207,7 @@ fn manage_table() -> Result<()> {
                      id INTEGER PRIMARY KEY, 
                      file_name TEXT UNIQUE, 
                      path TEXT UNIQUE, 
+                     directory TEXT,
                      title TEXT, 
                      artist TEXT, 
                      album TEXT, 
@@ -136,73 +236,6 @@ fn manage_table() -> Result<()> {
         session_number += 1;
     }
 }
-
-
-// pub async fn db_populate(path_var: String) -> Result<(Vec<String>)> {
-//     let paths = fs::read_dir(path_var.clone()).unwrap();
-//     let conn = Connection::open(get_db_path())?;
-
-//     let mut file_names: Vec<String> = Vec::new();
-//     let mut file_paths: Vec<String> = Vec::new();
-
-//     println!("From DB populate");
-//     for path in paths {
-//         // let tag = Tag::read_from_path(path.as_ref())?;
-//         let file_name = path.as_ref().unwrap().file_name();
-//         let path_value = path.as_ref().unwrap().path();
-
-//         file_names.push(file_name.clone().into_string().unwrap());
-//         file_paths.push(path_value.clone().into_os_string());
-
-        
-//         //Dont send into DB until API request has been made, then send ALL data. After that, send result to frontend - if successfull - begin preview screen, else show error
-
-//         let _ = conn.execute("INSERT INTO mp3_table_data (
-//             file_name, 
-//             path, 
-//             title, 
-//             artist, 
-//             album, 
-//             year, 
-//             track, 
-//             genre,
-//             comment, 
-//             album_artist, 
-//             composer, 
-//             discno, 
-//             successfulFieldCalls,
-//             successfulMechanismCalls,
-//             successfulQueries,
-//             totalFieldCalls,
-//             totalMechanismCalls,
-//             totalSuccessfulQueries,
-//             album_art
-//         ) VALUES (
-//             ?1,
-//             ?2,
-//             NULL,
-//             NULL,
-//             NULL,
-//             0,
-//             0,
-//             NULL,
-//             NULL,
-//             NULL,
-//             NULL,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//             NULL
-//         )",(file_name.into_string().unwrap(), path_value.to_str().unwrap()));
-//     }
-
-//     println!("Process Completed @: {}", path_var);
-//     Ok(file_names)
-// }
 
 pub async fn get_file_names(path_var: String) -> Result<Vec<String>> {
     let paths = fs::read_dir(path_var.clone()).unwrap();

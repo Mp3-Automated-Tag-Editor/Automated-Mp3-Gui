@@ -39,6 +39,17 @@ export const songSchema = z.object({
   status: z.string()
 })
 
+export const sessionSchema = z.object({
+  id: z.string(),
+  table_name: z.string(),
+  date: z.string(),
+  session_number: z.number(),
+  custom_name: z.string(),
+  path: z.string(),
+  total_files: z.number(),
+  processed_files: z.number(),
+})
+
 export type SongScrape = z.infer<typeof songScrapeSchema>
 export type Song = z.infer<typeof songSchema>
 

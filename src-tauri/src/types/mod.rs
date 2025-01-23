@@ -48,6 +48,19 @@ pub struct Packet<'a>  {
     pub accuracy: f32
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScrapeResult<'a>  {
+    pub status: Status,
+    pub status_code: u32, // 3xx for processing, 2xx for successful, 4xx for failure from Desktop, 5xx for Server failure
+    pub error_message: &'a str,
+    pub session_name: &'a str,
+    pub overall_accuracy: f32,
+    pub total_files: u32,
+    pub processed_files: u32,
+    pub time: &'a str
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MetaData {
@@ -159,4 +172,16 @@ pub struct EditViewSongMetadata {
     pub imageSrc: String,
     pub percentage: u32,
     pub status: String
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Session {
+    pub id: String,
+    pub table_name: String,
+    pub date: String,
+    pub session_number: u32,
+    pub custom_name: String,
+    pub path: String,
+    pub total_files: u32,
+    pub processed_files: u32, //TODO: Implement this
 }
