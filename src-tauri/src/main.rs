@@ -7,9 +7,7 @@ use std::env;
 use std::fs;
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tauri::{Manager, Runtime, Window};
 
 mod db;
@@ -53,7 +51,8 @@ fn main() {
             read_music_directory_multithreaded,
             update_music_file,
             long_job,
-            retrieve_all_sessions
+            retrieve_all_sessions,
+            retrieve_sessions_data
             // scan_paths
         ])
         .setup(|app| {
@@ -129,6 +128,8 @@ async fn start_scrape_process<R: Runtime>(
     let file_paths = db::get_file_paths(path_var.clone()).await;
 
     let settings_data = get_settings_data();
+
+    let _ = db::init_table();
 
     let num_workers = settings_data.clone().threads as usize;
 
@@ -214,7 +215,7 @@ fn read_music_directory(directory: String) -> Result<Vec<types::EditViewSongMeta
     info!("dir: {}", directory);
     let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
     let mut id_num = 0;
-    let paths = fs::read_dir(directory.clone()).unwrap();
+    let paths: fs::ReadDir = fs::read_dir(directory.clone()).unwrap();
     for path in paths {
         id_num+=1;
         let file_name = path.as_ref().unwrap().file_name();
@@ -272,6 +273,13 @@ fn retrieve_all_sessions() -> Result<Vec<types::Session>, String> {
     info!("Retrieving all sessions");
     let sessions = db::retrieve_all_sessions();
     Ok(sessions.unwrap())
+}
+
+#[tauri::command]
+fn retrieve_sessions_data(session: String) -> Result<Vec<types::EditViewSongMetadata>, String> {
+    info!("Retrieving session metadata for session: {}", session);
+    let session_data = db::retrieve_session_data(session.as_str());
+    Ok(session_data.unwrap())
 }
 
 #[tauri::command]

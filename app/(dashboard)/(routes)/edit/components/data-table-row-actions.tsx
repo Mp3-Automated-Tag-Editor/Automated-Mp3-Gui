@@ -43,7 +43,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { DialogClose } from "@radix-ui/react-dialog"
-
+import { useSessionContext } from "@/components/context/SessionContext/SessionContext"
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
   table: any
@@ -54,6 +54,7 @@ export function DataTableRowActions<TData>({
   table
 }: DataTableRowActionsProps<TData>) {
   const songDetails = songSchema.parse(row.original)
+  const sessionData = useSessionContext();
   const [formData, setFormData] = useState<Song>(songDetails);
   const [isOpen, setIsOpen] = useState<boolean>(true);
   const [isDialogSystem, setIsDialogSystem] = useState(false)

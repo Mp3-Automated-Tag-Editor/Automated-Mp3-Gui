@@ -59,8 +59,8 @@ const Start = () => {
   return (
     <div>
       <Heading
-        title="Stream & Connect"
-        description="Stream your favourite music on mobile through the Auto-Mp3 App!"
+        title="Download"
+        description="Download your favourite music as Mp3 files, stored locally for you to use anytime, anywhere!"
         icon={Download}
         iconColor="text-pink-700"
         otherProps="mb-8"

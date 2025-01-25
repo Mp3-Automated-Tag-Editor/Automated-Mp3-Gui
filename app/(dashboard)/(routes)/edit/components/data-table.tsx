@@ -36,7 +36,9 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   totalSongs: number
   functions: any
-  directory: string
+  directory: string,
+  sessionName: string,
+  overallAccuracy: string
 }
 
 export function DataTable<TData, TValue>({
@@ -44,7 +46,9 @@ export function DataTable<TData, TValue>({
   data,
   totalSongs,
   functions,
-  directory
+  directory,
+  sessionName,
+  overallAccuracy
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -75,7 +79,7 @@ export function DataTable<TData, TValue>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     meta: {
-      handleSongUpdate: (filePath: string, updatedSong: Song) => functions.updateSong(filePath, updatedSong)
+      handleSongUpdate: (filePath: string, updatedSong: Song) => functions.updateSong(filePath, updatedSong),
     }
   })
 
@@ -132,7 +136,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} totalSongs={totalSongs} />
+      <DataTablePagination table={table} totalSongs={totalSongs} overallAccuracy={overallAccuracy} />
     </div>
   )
 }

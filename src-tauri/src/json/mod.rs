@@ -3,6 +3,8 @@ use std::path::Path;
 use std::io::Write;
 use std::fs::OpenOptions;
 
+use crate::types::Settings;
+
 // Check if a Settings file exists, and create one if it does not.
 pub fn init() {
     if !settings_file_exists() {
@@ -23,12 +25,25 @@ fn create_settings_file() {
     // Create the Settings file.
     fs::File::create(&settings_path).unwrap();
 
-    //Add data to this file
-    let data = r#"{"threads":2,"test":"test","developerSettings":true,"spotify":true,"palm":true,"ytmusic":true,"itunes":true,"genius":true,"groq":true}"#;
-    let j = serde_json::to_string(&data);
-    // println!("{:?} From Initial func", j);
+    // Create an instance of the Settings struct
+    let settings = Settings {
+        threads: 4,
+        test: "test".to_string(),
+        developer_settings: true,
+        spotify: true,
+        palm: true,
+        ytmusic: true,
+        itunes: true,
+        genius: true,
+        groq: true,
+    };
+
+    // Serialize the Settings struct to a JSON string
+    let j = serde_json::to_string(&settings).unwrap();
+
+    // Write the serialized JSON string to the file
     let mut f = OpenOptions::new().write(true).truncate(true).open(settings_path).expect("Unable to create file");
-    f.write_all(j.unwrap().as_bytes()).expect("Unable to write data");
+    f.write_all(j.as_bytes()).expect("Unable to write data");
 }
 
 // Check whether the database file exists.

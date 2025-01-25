@@ -6,6 +6,7 @@ use std::{collections::HashMap, hash::Hash};
 pub struct Settings {
     pub threads: i32,
     pub test: String,
+    #[serde(rename = "developerSettings")]
     pub developer_settings: bool,
     pub spotify: bool,
     pub palm: bool,

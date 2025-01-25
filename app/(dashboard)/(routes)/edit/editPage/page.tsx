@@ -14,6 +14,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
 import Loading from "@/components/loading";
 import { Button } from "@/components/ui/button";
+import { SessionProvider } from "@/components/context/SessionContext/SessionContext";
 
 const fetchSongs = async (directory: string | null, pageNo: number | null, pageSize: number) => {
   try {
@@ -27,8 +28,21 @@ const fetchSongs = async (directory: string | null, pageNo: number | null, pageS
   }
 };
 
+const fetchSessionData = async (session: string | null, pageNo: number | null, pageSize: number) => {
+  try {
+    // const songs = await invoke('read_music_directory_paginated', { directory: directory, pageNumber: 0, pageSize: 10 });
+    const sessions = await invoke('retrieve_sessions_data', { session: session });
+
+    return z.array(songSchema).parse(sessions);
+  } catch (error) {
+    console.error("Failed to fetch Songs:", error);
+    return [];
+  }
+};
+
 const Edit = () => {
   const [songs, setSongs] = useState<Array<any>>([]);
+  const [sessionData, setSessionData] = useState<Array<any>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const searchParams = useSearchParams();
   const directory: string | null = searchParams.get('directory');
@@ -36,9 +50,10 @@ const Edit = () => {
   const pageSize: string | null = searchParams.get('pageSize');
   const totalSongs: string | null = searchParams.get('totalSongs');
   const session: string | null = searchParams.get('session');
+  const accuracy: string | null = searchParams.get('accuracy');
 
   useEffect(() => {
-    const loadTasks = async () => {
+    const loadSongs = async () => {
       setLoading(true);
       const fetchedSongs = await fetchSongs(directory, Number(pageNo), Number(pageSize));
       setSongs(fetchedSongs);
@@ -46,7 +61,14 @@ const Edit = () => {
       setLoading(false);
     };
 
-    loadTasks();
+    if (session != null) {
+      const loadSessions = async () => {
+        const fetchedSessionData = await fetchSessionData(session, Number(pageNo), Number(pageSize));
+        setSessionData(fetchedSessionData);
+      };
+      loadSessions();
+    }
+    loadSongs();
   }, []);
 
   async function updateSong(filePath: string, updatedSong: Song) {
@@ -74,15 +96,16 @@ const Edit = () => {
         <div>
           <Heading
             title={session!=null ? "Edit Session" : "Edit Music Files"}
-            description={`Manually edit Music Files in Directory: ${directory} (Session: ${session})`}
+            description={session!=null ? `Manually edit Music Files in Directory: ${directory} (Session: ${session})` : `Manually edit Music Files in Directory: ${directory}`}
             icon={Pencil}
             iconColor="text-orange-700"
             otherProps="mb-4"
           // bgColor="bg-violet-500/10"
           />
           <div className="px-4 lg:px-8">
-            {/* <Button onClick={() => updateSong("Hello", songs[0])}>Click me</Button> */}
-            <DataTable directory={directory ? directory : ""} functions={{ updateSong }} data={songs} columns={columns} totalSongs={Number(totalSongs)} />
+            <SessionProvider sessionData={session != null && session?.length>0 ? songs: sessionData} sessionName={session ? session : ""}>
+              <DataTable directory={directory ? directory : ""} functions={{ updateSong }} data={session != null && session?.length>0 ? sessionData : songs} columns={columns} totalSongs={Number(totalSongs)} sessionName={session ? session : ""} overallAccuracy={accuracy ? accuracy : ""} />
+            </SessionProvider>
           </div>
         </div>
       }

@@ -55,7 +55,7 @@ fn make_api_call<R: Runtime>(
     // let req_url = env::var("DEV_API_ENDPOINT").unwrap().to_string() + endpoint;
     let req_url = match env::var("DEV_API_ENDPOINT") {
         Ok(val) => val + endpoint,
-        Err(e) => {
+        Err(_e) => {
             error!("Error: DEV_API_ENDPOINT environment variable not set.");
             window
                 .emit(
@@ -118,7 +118,7 @@ fn make_api_call<R: Runtime>(
     match client.post(&req_url).body(data_string).send() {
         Ok(response) => {
             if response.status().is_success() {
-                let code: &u16 = &response.status().as_u16() as &u16;
+                let _code: &u16 = &response.status().as_u16() as &u16;
                 info!("Successful response from {}, thread {}", endpoint, i);
 
                 let api_response: ApiResponse =
@@ -154,7 +154,7 @@ fn make_api_call<R: Runtime>(
                 .unwrap();
 
                 PROCESSED_FILES.fetch_add(1, Ordering::Relaxed);
-                let mut accuracy_guard = match OVERALL_ACCURACY.lock() {
+                let _ = match OVERALL_ACCURACY.lock() {
                     Ok(mut accuracy_guard) => {
                         *accuracy_guard += overall_accuracy; // Example modification
                     }
@@ -167,7 +167,7 @@ fn make_api_call<R: Runtime>(
                 // *accuracy_guard += overall_accuracy;
 
                 let query = format!(
-                    "INSERT OR REPLACE INTO {} (
+                    "INSERT INTO {} (
                         file_name, 
                         path, 
                         directory,
@@ -192,7 +192,7 @@ fn make_api_call<R: Runtime>(
                     db::latest_session().unwrap()
                 );
 
-                let _ = db_conn
+                match db_conn
                     .execute(
                         &query,
                         params![
@@ -217,8 +217,14 @@ fn make_api_call<R: Runtime>(
                             api_response.result.calls.totalQueries,
                             path
                         ],
-                    )
-                    .expect("Error Inserting data");
+                    ) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error!("Error inserting data into the database: {:?}", err);                            
+                            return;
+                        }
+                    }
+                    
                 info!("Inserted data into the database");
                 info!("Data Accuracy: {}", overall_accuracy);
                 info!(
@@ -275,6 +281,8 @@ pub fn threaded_execution<R: Runtime>(
         Pool::new(db_manager).expect("Failed to create database connection pool"),
     ));
 
+    let total_tasks = endpoints.len();
+    let completed_tasks = Arc::new(AtomicU32::new(0));
     let mut handles = vec![];
     let endpoints_arc = Arc::new(Mutex::new(endpoints));
     let paths_arc = Arc::new(Mutex::new(paths));
@@ -288,6 +296,7 @@ pub fn threaded_execution<R: Runtime>(
         let db_pool_clone = Arc::clone(&db_pool);
         let settings_clone = Arc::clone(&settings_arc);
         let directory_clone = Arc::clone(&direcotry_arc);
+        let completed_tasks_clone = Arc::clone(&completed_tasks);
 
         let handle = thread::spawn(move || loop {
             if SHOULD_STOP.load(Ordering::Relaxed) {
@@ -315,6 +324,8 @@ pub fn threaded_execution<R: Runtime>(
                         settings,
                         directory.as_str()
                     );
+
+                    completed_tasks_clone.fetch_add(1, Ordering::Relaxed);
                 } else {
                     break;
                 }
@@ -332,9 +343,15 @@ pub fn threaded_execution<R: Runtime>(
                 info!("Thread completed successfully");
             }
             Err(e) => {
-                error!("Thread failed with error: {:?}", e);
+                error!("Thread failed with error: {:?}", e);                
             }
         }
+    }
+
+    info!("{:?}", completed_tasks.load(Ordering::Relaxed).to_string());
+
+    while completed_tasks.load(Ordering::Relaxed) < total_tasks as u32 {
+        thread::sleep(Duration::from_millis(50));
     }
 
     //Result Summary

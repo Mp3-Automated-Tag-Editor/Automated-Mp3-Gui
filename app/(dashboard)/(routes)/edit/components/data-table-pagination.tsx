@@ -17,21 +17,23 @@ import {
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>
-  totalSongs: number
+  totalSongs: number,
+  overallAccuracy: string
 }
 
 export function DataTablePagination<TData>({
   table,
-  totalSongs
+  totalSongs,
+  overallAccuracy
 }: DataTablePaginationProps<TData>) {
   const rowsLengthSelected: number = table.getFilteredSelectedRowModel().rows.length
   const rowsLength: number = table.getFilteredRowModel().rows.length
-  const overallPercentage = 95
+  const overallPercentage = overallAccuracy
 
   return (
     <div className="flex items-center justify-between px-2">
       <div className="flex-1 text-sm text-muted-foreground">
-        {rowsLengthSelected > 0 ? rowsLengthSelected + " of " + rowsLength + " row(s) selected." : "Overall Completion Percentage: "+overallPercentage+"%"}
+        {rowsLengthSelected > 0 ? rowsLengthSelected + " of " + rowsLength + " row(s) selected." : overallAccuracy!="" ? "Overall Completion Percentage: "+overallPercentage+"%" : "Total Songs: " + totalSongs}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">

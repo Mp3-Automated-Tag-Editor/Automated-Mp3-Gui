@@ -523,7 +523,7 @@ const Terminal = () => {
       if (results == null) {
         return;
       }
-      router.push(`/edit/editPage?directory=${directory}&totalSongs=${numOfFiles}&pageNo=${1}&pageSize=${10}&session=${results.sessionName}`);
+      router.push(`/edit/editPage?directory=${directory}&totalSongs=${numOfFiles}&pageNo=${1}&pageSize=${10}&session=${results.sessionName}&accuracy=${results.overallAccuracy}`);
     } catch (error) {
       console.log(error);
     }

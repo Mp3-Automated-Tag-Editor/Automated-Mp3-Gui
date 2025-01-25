@@ -11,7 +11,9 @@ pub fn init() {
     if !db_file_exists() {
         let _ = create_db_file();
     }
+}
 
+pub fn init_table() {
     match manage_table() {
         Ok(_) => info!("Table management successful"),
         Err(e) => eprintln!("Error managing tables: {}", e),
@@ -55,26 +57,52 @@ pub fn latest_session() -> Result<String> {
     Ok(latest_table.unwrap())
 }
 
-// pub fn get_all_sessions() -> Result<types::Session> {
-//     let conn = Connection::open(get_db_path())?;
-//     let mut latest_table = None;
-//     let today = Local::now().format("%d_%m_%Y").to_string();
+pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSongMetadata>, String> {
+    let conn = Connection::open(get_db_path()).map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut metadata_list = Vec::new();
 
-//     // Find the latest table (Session) for the day
-//     let mut stmt = conn.prepare(
-//         "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ? ORDER BY name DESC LIMIT 1"
-//     )?;
-//     let pattern = format!("t_{}_session_%", today); // Add 't_' prefix to the pattern
-//     let table_iter = stmt.query_map([&pattern], |row| row.get(0))?;
+    let query = format!("SELECT id, file_name, artist, title, album, path, year, track, genre, comment, album_artist, composer, discno, album_art, successfulQueries, totalsuccessfulQueries FROM {}", table_name);
 
-//     for table in table_iter {
-//         let table_name: String = table.unwrap();
-//         latest_table = Some(table_name);
-//         break;
-//     }
+    let mut stmt = conn.prepare(&query).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-//     Ok(latest_table.unwrap())
-// }
+    let rows = stmt.query_map([], |row| {
+        let successful_calls: u32 = row.get(14)?;
+        let total_calls: u32 = row.get(15)?;
+        let percentage = if total_calls > 0 {
+            (successful_calls * 100) / total_calls
+        } else {
+            0
+        };
+
+        Ok(types::EditViewSongMetadata {
+            id: row.get::<_, i32>(0)?.to_string(),
+            file: row.get(1)?,
+            artist: row.get(2)?,
+            title: row.get(3)?,
+            album: row.get(4)?,
+            path: row.get(5)?,
+            year: row.get::<_, Option<u32>>(6)?.unwrap_or(0),
+            track: row.get::<_, Option<u32>>(7)?.unwrap_or(0),
+            genre: row.get::<_, Option<String>>(8)?.unwrap_or_default(),
+            comments: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
+            albumArtist: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
+            composer: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+            discno: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
+            imageSrc: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+            percentage,
+            status: if percentage == 100 { "Completed".to_string() } else { "Incomplete".to_string() },
+        })
+    }).map_err(|e| format!("Failed to query rows: {}", e))?;
+
+    for row in rows {
+        metadata_list.push(row.map_err(|e| format!("Failed to process row: {}", e))?);
+    }
+
+    info!("Retrieved {} records from table: {}", metadata_list.len(), table_name);
+
+    Ok(metadata_list)
+}
+
 
 pub fn retrieve_all_sessions() -> Result<Vec<types::Session>> {
     info!("Hello");
@@ -177,7 +205,7 @@ fn manage_table() -> Result<()> {
                 + 1;
         } else {
             let latest_date = latest_table.split('_').take(3).collect::<Vec<_>>().join("_").get(..).map_or(String::new(), |s| s.to_string());
-            if (latest_date == today) {
+            if latest_date == today {
                 // If the latest table is from today and has no data, reuse it
                 info!("Reusing existing table without data: {}", latest_table);
                 return Ok(());
@@ -204,7 +232,7 @@ fn manage_table() -> Result<()> {
             // Create the new table
             conn.execute(&format!(
                 "CREATE TABLE {} (
-                     id INTEGER PRIMARY KEY, 
+                     id INTEGER PRIMARY KEY AUTOINCREMENT, 
                      file_name TEXT UNIQUE, 
                      path TEXT UNIQUE, 
                      directory TEXT,
