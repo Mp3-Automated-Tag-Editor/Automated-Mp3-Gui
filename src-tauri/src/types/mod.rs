@@ -172,7 +172,8 @@ pub struct EditViewSongMetadata {
     pub discno: u32,
     pub imageSrc: String,
     pub percentage: u32,
-    pub status: String
+    pub status: String,
+    pub sessionName: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

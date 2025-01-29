@@ -36,7 +36,8 @@ export const songSchema = z.object({
   discno: z.number(),
   imageSrc: z.string(),
   percentage: z.number(),
-  status: z.string()
+  status: z.string(),
+  sessionName: z.string()
 })
 
 export const sessionSchema = z.object({

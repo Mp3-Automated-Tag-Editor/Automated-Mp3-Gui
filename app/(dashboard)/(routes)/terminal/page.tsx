@@ -556,6 +556,8 @@ const Terminal = () => {
                 md:px-6 
                 focus-within:shadow-sm
             "
+            // xl:h-[86vh]
+            // lg:h-[72vh]
         >
           <Progress
             indicatorColor="bg-black"

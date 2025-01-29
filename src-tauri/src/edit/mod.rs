@@ -80,10 +80,10 @@ pub fn get_details_for_song(
         None => "".to_owned(),
     };
 
-    // let base64_image_string = match image_data {
-    //     Some(data) => std::str::from_utf8(data.data()).unwrap(),
-    //     None => ""
-    // };
+    let session = tag
+        .get_string(&ItemKey::Description)
+        .unwrap_or("None")
+        .to_string();
 
     let song = EditViewSongMetadata {
         id: id.to_string(),
@@ -125,7 +125,8 @@ pub fn get_details_for_song(
             .unwrap(),
         imageSrc: base64_image_string,
         percentage: 0,
-        status: "edit".to_owned(),
+        status: if session == "None" { "UNSAVED" } else { "EDIT" }.to_string(),
+        sessionName: session,
     };
 
     Ok(song)
@@ -159,6 +160,7 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
     tag.insert_text(ItemKey::AlbumArtist, song.albumArtist);
     tag.insert_text(ItemKey::Composer, song.composer);
     tag.insert_text(ItemKey::DiscNumber, song.discno.to_string());
+    tag.insert_text(ItemKey::Description, song.sessionName);
 
     // Handle image data if present
     if !song.imageSrc.is_empty() {

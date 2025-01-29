@@ -256,7 +256,7 @@ export const columns: ColumnDef<Song>[] = [
       return (
         <div className="flex w-[150px] items-center">
           {status.icon && (
-            <status.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+            <status.icon className={`mr-2 h-4 w-4 text-muted-foreground text-${status.color}-500`}/>
           )}
           <span>{status.label}</span>
         </div>

@@ -30,6 +30,7 @@ lazy_static::lazy_static! {
     static ref OVERALL_ACCURACY: Arc<Mutex<f32>> = Arc::new(Mutex::new(0.0));
     static ref TOTAL_FILES: AtomicU32 = AtomicU32::new(0);
     static ref PROCESSED_FILES: AtomicU32 = AtomicU32::new(0);
+    static ref LATEST_SESSION: String = db::latest_session().unwrap();
 }
 
 pub fn stop_execution() {
@@ -187,8 +188,9 @@ fn make_api_call<R: Runtime>(
                         totalFieldCalls,
                         totalMechanismCalls,
                         totalSuccessfulQueries,
-                        album_art
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+                        album_art,
+                        sessionName
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
                     db::latest_session().unwrap()
                 );
 
@@ -215,7 +217,8 @@ fn make_api_call<R: Runtime>(
                             api_response.result.calls.totalMechanismCalls,
                             api_response.result.calls.totalMechanismCalls,
                             api_response.result.calls.totalQueries,
-                            path
+                            path, //Need to call the other API with the album name to get the album art, or just combine it
+                            LATEST_SESSION.as_str()
                         ],
                     ) {
                         Ok(_) => {}

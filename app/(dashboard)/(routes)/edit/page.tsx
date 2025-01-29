@@ -149,7 +149,7 @@ const Edit = () => {
         otherProps="mb-8"
       // bgColor="bg-violet-500/10"
       />
-      <div className="px-4 lg:px-8 flex justify-center items-center">
+      <div className="px-4 lg:px-8 items-center">
         <div>
           <div className="rounded-lg 
                   border 
@@ -179,7 +179,7 @@ const Edit = () => {
           </div>
           {displaySessions ? <div>
             {sessions.map((session, index) => (
-              <DialogSessions msg={session.path + " - " + session.total_files + " file(s)"} title={formatDate(session.date) + " - Session " + session.session_number} href={`/edit/editPage?directory=${session.path}&totalSongs=${totalSongs}&pageNo=${1}&pageSize=${10}&session=${session.table_name}&accuracy=${session.processed_files/session.total_files}`} variant="none" type={false} />
+              <DialogSessions msg={session.path + " - " + session.total_files + " processed file(s)"} title={formatDate(session.date) + " - Session " + session.session_number} href={`/edit/editPage?directory=${session.path}&totalSongs=${totalSongs}&pageNo=${1}&pageSize=${10}&session=${session.table_name}&accuracy=${session.processed_files/session.total_files*100}`} variant="none" type={false} />
             ))}
           </div> : null}
         </div>

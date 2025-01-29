@@ -20,7 +20,7 @@ const fetchSongs = async (directory: string | null, pageNo: number | null, pageS
   try {
     // const songs = await invoke('read_music_directory_paginated', { directory: directory, pageNumber: 0, pageSize: 10 });
     const songs = await invoke('read_music_directory', { directory: directory });
-
+    console.log(songs)
     return z.array(songSchema).parse(songs);
   } catch (error) {
     console.error("Failed to fetch Songs:", error);
@@ -72,6 +72,7 @@ const Edit = () => {
   }, []);
 
   async function updateSong(filePath: string, updatedSong: Song) {
+    console.log("Updating Song: ", updatedSong)
     // Call Rust update
     const val: [boolean, string] = await invoke('update_music_file', { path: filePath, song: updatedSong });
     if(val[0] == false) {
@@ -102,9 +103,9 @@ const Edit = () => {
             otherProps="mb-4"
           // bgColor="bg-violet-500/10"
           />
-          <div className="px-4 lg:px-8">
-            <SessionProvider sessionData={session != null && session?.length>0 ? songs: sessionData} sessionName={session ? session : ""}>
-              <DataTable directory={directory ? directory : ""} functions={{ updateSong }} data={session != null && session?.length>0 ? sessionData : songs} columns={columns} totalSongs={Number(totalSongs)} sessionName={session ? session : ""} overallAccuracy={accuracy ? accuracy : ""} />
+          <div className="px-4 lg:px-8 h-full">
+            <SessionProvider sessionData={session != null && session?.length>0 ? sessionData : songs} sessionName={session ? session : ""}>
+              <DataTable directory={directory ? directory : ""} functions={{ updateSong }} data={songs} columns={columns} totalSongs={Number(totalSongs)} sessionName={session ? session : ""} overallAccuracy={accuracy ? accuracy : ""} />
             </SessionProvider>
           </div>
         </div>

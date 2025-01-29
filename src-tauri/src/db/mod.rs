@@ -90,7 +90,8 @@ pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSong
             discno: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
             imageSrc: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
             percentage,
-            status: if percentage == 100 { "Completed".to_string() } else { "Incomplete".to_string() },
+            status: "EDIT".to_string(),
+            sessionName: table_name.to_string(),
         })
     }).map_err(|e| format!("Failed to query rows: {}", e))?;
 
@@ -252,7 +253,8 @@ fn manage_table() -> Result<()> {
                      totalFieldCalls NUMBER,
                      totalMechanismCalls NUMBER,
                      totalSuccessfulQueries NUMBER,
-                     album_art TEXT
+                     album_art TEXT,
+                     sessionName TEXT
                  )",
                 table_name
             ), [])?;

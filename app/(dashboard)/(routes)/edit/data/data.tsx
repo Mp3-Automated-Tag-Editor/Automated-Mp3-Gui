@@ -12,19 +12,22 @@ import {
 
 export const statuses = [
   {
-    value: "in progress",
-    label: "In Progress",
+    value: "EDIT",
+    label: "Edit",
     icon: StopwatchIcon,
+    color: "yellow"
   },
   {
-    value: "done",
-    label: "Done",
+    value: "SAVED",
+    label: "Saved",
     icon: CheckCircledIcon,
+    color: "green"
   },
   {
-    value: "canceled",
-    label: "Canceled",
+    value: "UNSAVED",
+    label: "Unsaved",
     icon: CrossCircledIcon,
+    color: "red"
   },
 ]
 
