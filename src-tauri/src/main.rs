@@ -9,6 +9,7 @@ use std::fs::{read_dir, File, OpenOptions};
 use std::io::{Read, Write};
 use std::time::Instant;
 use tauri::{Manager, Runtime, Window};
+use tauri::api::process::{CommandEvent, Command};
 
 mod db;
 mod json;
@@ -52,7 +53,8 @@ fn main() {
             update_music_file,
             long_job,
             retrieve_all_sessions,
-            retrieve_sessions_data
+            retrieve_sessions_data,
+            download_music
             // scan_paths
         ])
         .setup(|app| {
@@ -291,90 +293,43 @@ fn update_music_file(path: String, song: types::EditViewSongMetadata) -> (bool, 
     }
 }
 
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// struct ScanPathsEvent {
-//     paths: Vec<String>,
-//     recursive: bool,
-// }
+#[tauri::command]
+async fn download_music<R: Runtime>(window: tauri::Window<R>, path: String, url: String, bitrate: u32) -> Result<(), String> {  
+    info!("dir: {}, url: {}, bitrate: {}", path, url, bitrate);
 
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// struct ToImportEvent {
-//     songs: Vec<Song>,
-//     progress: u8,
-//     error: Option<String>,
-// }
+    let (mut rx, mut child) = Command::new_sidecar("auto-mp3-downloader")
+        .expect("failed to create `my-sidecar` binary command")
+        .args(["--output",path.as_str(), "--quality", bitrate.to_string().as_str(), "--metadata", url.as_str()])
+        .spawn()
+        .expect("Failed to spawn sidecar");
 
-// #[tauri::command]
-// async fn scan_paths(event: ScanPathsEvent, app_handle: tauri::AppHandle) -> ToImportEvent {
-//     // println!("scan_paths", event);
-//     let songs: Arc<std::sync::Mutex<Vec<Song>>> = Arc::new(Mutex::new(Vec::new()));
+    let window_clone = window.clone();
 
-//     event.paths.par_iter().for_each(|p| {
-//         let path = Path::new(p.as_str());
-//         // println!("{:?}", path);
+    tauri::async_runtime::spawn(async move {
+    while let Some(event) = rx.recv().await {
+        if let CommandEvent::Stdout(line) = event.clone() {
+            window_clone.clone()
+            .emit("download_progress", Some(format!("{}", line)))
+            .expect("failed to emit event");
+        
+        // write to stdin
+        child.write("message from Rust\n".as_bytes()).unwrap();
+        }
+        if let CommandEvent::Stderr(line) = event.clone() {
+            window_clone.clone()
+            .emit("download_progress", Some(format!("Error: {}", line)))
+            .expect("failed to emit event");
+        }
+        if let CommandEvent::Terminated(line) = event {
+            window_clone.clone()
+            .emit("download_progress", Some(format!("Process Completed: {:?}", line.code.unwrap())))
+            .expect("failed to emit event");
+        }
+    }
+    });
 
-//         if path.is_file() {
-//             if let Some(song) = crate::metadata::extract_metadata(&path, true) {
-//                 songs.lock().unwrap().push(song);
-//             }
-//         } else if path.is_dir() {
-//             if let Some(sub_songs) = process_directory(Path::new(path), &songs, event.recursive) {
-//                 songs.lock().unwrap().extend(sub_songs);
-//             }
-//         }
-//     });
-
-//     // Print the collected songs for demonstration purposes
-//     // for song in songs.lock().unwrap().clone(){
-//     //     println!("{:?}", song);
-//     // }
-
-//     let length = songs.lock().unwrap().clone().len();
-//     if length > 500 {
-//         let songs_clone = songs.lock().unwrap();
-//         let enumerator = songs_clone.chunks(200);
-//         let chunks = enumerator.len();
-//         enumerator.into_iter().enumerate().for_each(|(idx, slice)| {
-//             thread::sleep(time::Duration::from_millis(1000));
-//             let progress = if idx == chunks - 1 {
-//                 100
-//             } else {
-//                 u8::min(
-//                     ((slice.len() * (idx + 1)) as f64 / length as f64).mul(100.0) as u8,
-//                     100,
-//                 )
-//             };
-//             println!("{:?}", progress);
-//             let _ = app_handle.emit_all(
-//                 "import_chunk",
-//                 ToImportEvent {
-//                     songs: slice.to_vec(),
-//                     progress: progress,
-//                     error: None,
-//                 },
-//             );
-//         });
-//         ToImportEvent {
-//             songs: songs.lock().unwrap().clone(),
-//             progress: 100,
-//             error: None,
-//         }
-//     } else {
-//         let _ = app_handle.emit_all(
-//             "import_chunk",
-//             ToImportEvent {
-//                 songs: songs.lock().unwrap().clone(),
-//                 progress: 100,
-//                 error: None,
-//             },
-//         );
-//         ToImportEvent {
-//             songs: songs.lock().unwrap().clone(),
-//             progress: 100,
-//             error: None,
-//         }
-//     }
-// }
+    Ok(())
+}
 
 
 #[tauri::command(rename_all = "snake_case")]

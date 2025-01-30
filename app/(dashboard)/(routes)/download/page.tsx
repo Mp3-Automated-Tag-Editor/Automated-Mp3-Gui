@@ -1,18 +1,110 @@
 "use client";
+import { Command } from '@tauri-apps/api/shell'
 
 import { message, open } from "@tauri-apps/api/dialog";
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { invoke } from "@tauri-apps/api/tauri";
+import { Dialog, DialogSessions } from "@/components/dialog";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { Packet } from '@/types';
+import { SimpleLine } from '@/components/terminal-items';
 
-const Start = () => {
+const DownloadMusic = () => {
   const router = useRouter();
   const [directory, setDirectory] = useState<any>();
   const [bitRate, setBitRate] = useState<number>(320);
+  const [url, setUrl] = useState<string>("");
+  const [error, setError] = useState<boolean>(false);
+  const [errorDetails, setErrorDetails] = useState<{
+    title: string;
+    data: string;
+    type: number;
+  }>({ title: "", data: "", type: 0 });
+  const [hashmap, setHashmap] = useState<Map<number, string>>(new Map());
+  const [completed, setCompleted] = useState<boolean>(false);
+  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUrl(event.target.value);
+  };
+
+  // async function startDownloadTest() {
+  //   const dynamicOutputPath = './test/music';
+  //   const dynamicMetadataUrl = 'https://www.youtube.com/watch?v=roYfihZ_gJ0&list=PLI7-lKwh3jzYM6xlM-R_PKW5YdNhgW1aD&index=2';
+
+  //   // Prepare the command with dynamic arguments
+  //   const command = Command.sidecar('../bin/auto-mp3-downloader.exe', [
+  //     '--output', dynamicOutputPath,
+  //     '--quality', (320).toString(),
+  //     '--metadata', dynamicMetadataUrl
+  //   ]);
+
+  //   const output = await command.execute()
+  //   console.log(output)
+  // }
+  useEffect(() => {
+    async function listenDownloadDetails() {
+      let ptr = 0;
+      let _unListen: UnlistenFn = await listen("download_progress", (event) => {
+        const progressData: string = JSON.parse(
+          JSON.stringify(event.payload)
+        );
+        hashmap.set(ptr++, progressData);
+        if (progressData.includes("Process Completed: ")) {
+          setCompleted(true);
+        }
+        setHashmap(new Map(hashmap));
+      });
+    }
+
+    listenDownloadDetails();
+  }, []);
+
+  async function startDownload() {
+    try {
+      if (!directory) {
+        setErrorDetails({
+          title: "No Selected Directory",
+          data: "Kindly select a directory that contains music files to be scraped.",
+          type: 0,
+        });
+        setError(true);
+        return;
+      }
+
+      if (!url) {
+        setErrorDetails({
+          title: "No URL Provided",
+          data: "Kindly select a directory that contains music files to be scraped.",
+          type: 0,
+        });
+        setError(true);
+        return;
+      }
+
+      setError(false);
+
+      // Start download
+      const val: any = await invoke("download_music", {
+        path: directory,
+        url: url,
+        bitrate: bitRate,
+      });      
+
+    } catch (error) {
+      console.log(error);
+      setErrorDetails({
+        title: "Error",
+        data: "An error occured while trying to download the file: " + error,
+        type: 0,
+      });
+      setError(true);
+    }
+  }
 
   async function selectDirectory() {
     try {
@@ -44,6 +136,22 @@ const Start = () => {
 
       <div className="px-4 lg:px-8">
         <div>
+          {error === true ? (
+            <>
+              <Dialog
+                msg={errorDetails.data}
+                title={errorDetails.title}
+                variant="destructive"
+                type={true}
+              />
+              {/* <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} />  goBackFunc={goBack} retryFunc={retry} /> */}
+            </>
+          ) : null}
+          {completed === true ? (
+            <>
+              <DialogSessions msg="Successfully downloaded your files. Click this link to go to the edit page." title="Success!" href={`/edit/editPage?directory=${directory}&totalSongs=${100}&pageNo=${1}&pageSize=${10}`} variant="none" type={false} />              
+            </>
+          ) : null}
           <div
             className="rounded-lg 
                  border
@@ -59,12 +167,15 @@ const Start = () => {
                 <p className="text-sm py-4">
                   <ol>
                     <li>
-                      1. You can use Spotify Playlist Links, single Spotify
+                      1. Make sure to install the 2 dependencies - ffmpeg and spotdl. You can follow the docuemntation on how to install them here: 
+                    </li>
+                    <li>
+                      2. You can use Spotify Playlist Links, single Spotify
                       music links, Youtube Playlists and Youtube Links for the
                       downloader.
                     </li>
                     <li>
-                      2. Set a specific bitrate. In case of constraints, it will
+                      3. Set a specific bitrate. In case of constraints, it will
                       default to the availble bitrate.
                     </li>
                   </ol>
@@ -73,7 +184,7 @@ const Start = () => {
                 <div className="space-y-4">
                   <div className="">
                     <Label htmlFor="url">Spotify/Youtube URL:</Label>
-                    <Input id="url" />
+                    <Input id="url" value={url} onChange={handleUrlChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bitrate">Download Bitrate (kbps): </Label>
@@ -103,6 +214,15 @@ const Start = () => {
                         ? `Selected Directory: ${directory}`
                         : "Select Directory"}
                     </Button>
+                    <Button
+                      onClick={startDownload}
+                      className="col-span-12 lg:col-span-3 w-full"
+                      type="submit"
+                      size="icon"
+                      variant="default"
+                    >
+                      Start Download
+                    </Button>
                   </div>
                 </div>
                 {/* Add button to select download directory / create download directory */}
@@ -115,7 +235,16 @@ const Start = () => {
                     $ Mp3-Automated-Tag-Editor v1.3.0
                     <span className="cursor1">_</span>
                   </p>
-
+                  {[...hashmap].map((entry) => {
+                                let key = entry[0];
+                                let value = entry[1];
+                                return (
+                                  <SimpleLine
+                                    key={key}
+                                    lineType={5}
+                                    result={value} />
+                                );
+                              })}
                   <p className="line4">
                     &gt;<span className="cursor4">_</span>
                   </p>
@@ -130,4 +259,4 @@ const Start = () => {
   );
 };
 
-export default Start;
+export default DownloadMusic;

@@ -57,3 +57,12 @@ export function ResultItem({ lineType, resultStatus, resultStatusCode, resultErr
         </div>
     );
 }
+
+export function SimpleLine({ lineType, result }
+    : { lineType: number, result: string }) {
+        return (
+        <div>
+            <p className={"line" + lineType}>{lineType == 3 ? <span>[&gt;]</span> : null} <span>{result}</span></p>            
+        </div>
+    );
+}
