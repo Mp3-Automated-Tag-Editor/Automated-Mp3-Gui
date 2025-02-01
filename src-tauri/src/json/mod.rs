@@ -27,16 +27,41 @@ fn create_settings_file() {
 
     // Create an instance of the Settings struct
     let settings = Settings {
-        threads: 4,
+        threads: 2,
         test: "test".to_string(),
-        developer_settings: true,
+        developer_settings: false,
+        use_cache: true,
         spotify: true,
         palm: true,
         ytmusic: true,
         itunes: true,
         genius: true,
         groq: true,
+        deepseek_r1: false,
+        amazon_music: false,
+        apple_music: false, 
+        the_audio_db: false,
+        deezer: false,      
+        music_brainz: false,
+        echonest: false,    
+        pandora: false,     
+        soundcloud: false,  
+        tidal: false,       
+        napster: false,     
+        qobuz: false,       
+        qq_music: false,    
+        yandex_music: false,
+        vk_music: false,    
+        anghami: false,     
+        zvuk: false,        
+        gaana: false,       
+        jiosaavn: false,    
+        resso: false,       
+        boomplay: false,    
+        wikipedia: false,   
+        google_search: false,
     };
+    
 
     // Serialize the Settings struct to a JSON string
     let j = serde_json::to_string(&settings).unwrap();

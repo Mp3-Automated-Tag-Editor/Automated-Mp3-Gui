@@ -6,7 +6,7 @@ use lofty::picture::{Picture, PictureType};
 use lofty::probe::Probe;
 use lofty::tag::TagExt;
 use lofty::tag::{Accessor, ItemKey, Tag, TagType};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use std::path::Path;
 use std::fs;
 
@@ -66,6 +66,8 @@ pub fn get_details_for_song(
         .read()
         .expect("ERROR: Failed to read file!");
 
+    info!("Number of Tags: {}", tagged_file.tags().len());
+
     let tag = match tagged_file.primary_tag() {
         Some(primary_tag) => primary_tag,
         // If the "primary" tag doesn't exist, we just grab the
@@ -92,11 +94,7 @@ pub fn get_details_for_song(
         artist: tag.artist().as_deref().unwrap_or("None").to_string(),
         title: tag.title().as_deref().unwrap_or("None").to_string(),
         album: tag.album().as_deref().unwrap_or("None").to_string(),
-        year: tag
-            .get_string(&ItemKey::Year)
-            .unwrap_or("0")
-            .parse::<u32>()
-            .unwrap(),
+        year: tag.year().unwrap_or(0),
         track: tag
             .get_string(&ItemKey::TrackNumber)
             .unwrap_or("0")
@@ -150,9 +148,13 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
         None => tagged_file.first_tag_mut().expect("ERROR: No tags found!"),
     };
 
+    // tagged_file.clear();
+    // let mut tag = Tag::new(TagType::Id3v2);
+
     tag.set_artist(song.artist);
     tag.set_title(song.title);
     tag.set_album(song.album);
+    tag.set_year(song.year);
     tag.insert_text(ItemKey::Year, song.year.to_string());
     tag.insert_text(ItemKey::TrackNumber, song.track.to_string());
     tag.insert_text(ItemKey::Genre, song.genre);
@@ -186,14 +188,14 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
 
     let mut tag = id3::Tag::read_from_path(&song.path).unwrap();
 
-    val = match tag.write_to_path(&song.path, id3::Version::Id3v23) {
+    val = match tag.write_to_path(&song.path, id3::Version::Id3v24) {
         Ok(_) => Ok(()),
         Err(error_value) => Err(error_value.to_string())
     };
 
     // Rename the file
-    let new_path = path.with_file_name(new_filename);
-    fs::rename(path, &new_path).map_err(|e| e.to_string())?;
+    // let new_path = path.with_file_name(new_filename);
+    // fs::rename(path, &new_path).map_err(|e| e.to_string())?;
 
     val
 }

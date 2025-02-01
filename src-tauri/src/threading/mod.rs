@@ -113,7 +113,7 @@ fn make_api_call<R: Runtime>(
             "genius": settings_data.genius,
             "groq": settings_data.groq,
         },
-        "useCache": true,
+        "useCache": settings_data.use_cache,
     });
     let data_string = serde_json::to_string(&data).unwrap();
     match client.post(&req_url).body(data_string).send() {

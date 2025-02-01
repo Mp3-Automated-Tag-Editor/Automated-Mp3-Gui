@@ -8,12 +8,46 @@ pub struct Settings {
     pub test: String,
     #[serde(rename = "developerSettings")]
     pub developer_settings: bool,
+    #[serde(rename = "useCache")]
+    pub use_cache: bool,
     pub spotify: bool,
     pub palm: bool,
     pub ytmusic: bool,
     pub itunes: bool,
     pub genius: bool,
     pub groq: bool,
+    #[serde(rename = "deepseekR1")]
+    pub deepseek_r1: bool,
+    #[serde(rename = "amazonMusic")]
+    pub amazon_music: bool,
+    #[serde(rename = "appleMusic")]
+    pub apple_music: bool,
+    #[serde(rename = "theAudioDb")]
+    pub the_audio_db: bool,
+    pub deezer: bool,
+    #[serde(rename = "musicBrainz")]
+    pub music_brainz: bool,
+    pub echonest: bool,
+    pub pandora: bool,
+    pub soundcloud: bool,
+    pub tidal: bool,
+    pub napster: bool,
+    pub qobuz: bool,
+    #[serde(rename = "qqMusic")]
+    pub qq_music: bool,
+    #[serde(rename = "yandexMusic")]
+    pub yandex_music: bool,
+    #[serde(rename = "vkMusic")]
+    pub vk_music: bool,
+    pub anghami: bool,
+    pub zvuk: bool,
+    pub gaana: bool,
+    pub jiosaavn: bool,
+    pub resso: bool,
+    pub boomplay: bool,
+    pub wikipedia: bool,
+    #[serde(rename = "googleSearch")]
+    pub google_search: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

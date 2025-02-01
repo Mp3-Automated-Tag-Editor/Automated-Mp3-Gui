@@ -1,13 +1,12 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { message, open } from '@tauri-apps/api/dialog'
+import { open } from '@tauri-apps/api/dialog'
 
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -15,31 +14,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Progress } from "@/components/ui/progress"
 import { invoke } from '@tauri-apps/api/tauri'
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { useState, useContext } from "react";
 import { Dialog } from "@/components/dialog";
-import Alert from "@/components/alert";
-import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
-import { array, boolean, number, z } from "zod";
 import Loading from "@/components/loading";
 import "../../../globals.css"
-import { Store } from "tauri-plugin-store-api";
-import { CheckItem, } from "@/components/terminal-items";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import { GlobalHotKeys } from 'react-hotkeys'
-import useStateRef from "react-usestateref";
 import { useRouter } from "next/navigation";
+import { DisplayForm } from "../settings/dev/display-form";
+import { ConfigContext } from "@/components/context/ConfigContext"
 
 const Start = () => {
   const [directory, setDirectory] = useState<any>();
   const [loading, setLoading] = useState<{ state: boolean, msg: string }>({ state: false, msg: "" });
   const [error, setError] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<{ title: string, data: string, type: number }>({ title: "", data: "", type: 0 })
-
+  const { configs, addConfig } = useContext(ConfigContext);
   const router = useRouter();
 
   async function startSearch() {
@@ -157,35 +146,24 @@ const Start = () => {
 
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button disabled className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
-                        Settings
+                      <Button disabled={!configs.developerSettings} className="col-span-12 lg:col-span-3 w-full" type="submit" size="icon">
+                        Developer Settings
                       </Button>
                     </SheetTrigger>
-                    <SheetContent>
+                    <SheetContent className="overflow-y-auto p-4 min-w-[500px]">
                       <SheetHeader>
-                        <SheetTitle>Edit profile</SheetTitle>
+                        <SheetTitle>Edit Developer Settings</SheetTitle>
                         <SheetDescription>
-                          Make changes to your profile here. Click save when you&apos;re done.
+                          Make changes to the scraper profile here:
                         </SheetDescription>
                       </SheetHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="name" className="text-right">
-                            Name
-                          </Label>
-                          <Input id="name" value="Pedro Duarte" className="col-span-3" />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="username" className="text-right">
-                            Username
-                          </Label>
-                          <Input id="username" value="@peduarte" className="col-span-3" />
-                        </div>
+                      <div>
+                        <DisplayForm />
                       </div>
                       <SheetFooter>
-                        <SheetClose asChild>
+                        {/* <SheetClose asChild>
                           <Button type="submit">Save changes</Button>
-                        </SheetClose>
+                        </SheetClose> */}
                       </SheetFooter>
                     </SheetContent>
                   </Sheet>

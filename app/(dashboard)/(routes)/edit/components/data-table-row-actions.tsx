@@ -168,7 +168,7 @@ export function DataTableRowActions<TData>({
           className={
             sessionData.sessionName != ""
               ? "overflow-y-auto p-4 min-w-[780px]"
-              : "overflow-y-auto p-4"
+              : "overflow-y-auto p-4 min-w-[400px]"
           }
         >
           <Tabs defaultValue="edit">
@@ -203,6 +203,7 @@ export function DataTableRowActions<TData>({
                           label={label}
                           name={name}
                           value={formData[name as keyof Song]}
+                          sessionExists={sessionData.sessionName != ""}
                           sessionValue={
                             sessionSongData
                               ? String(sessionSongData[name as keyof Song])
@@ -225,7 +226,7 @@ export function DataTableRowActions<TData>({
                           className="col-span-3"
                         />{" "}
                       </div>
-                      <div className="grid grid-cols-2 justify-center items-center gap-4">
+                      <div className={sessionData.sessionName != "" ? "grid grid-cols-2 place-items-center gap-4" : "place-items-center gap-4"}>
                         <Image
                           // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
                           src={
@@ -239,7 +240,8 @@ export function DataTableRowActions<TData>({
                           className="border border-black image-blur"
                           onClick={() => setOpenImageDialog(!openImageDialog)}
                         />
-                        <Image
+                        {
+                          sessionData.sessionName != "" ? <Image
                           // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
                           src={
                             sessionSongData && sessionSongData.imageSrc
@@ -251,7 +253,8 @@ export function DataTableRowActions<TData>({
                           alt="Picture of the author"
                           className="border border-black image-blur"
                           onClick={() => setOpenImageDialog(!openImageDialog)}
-                        />
+                        /> : null
+                        }                      
                       </div>
                       <Dialog
                         open={openImageDialog}
@@ -368,6 +371,7 @@ interface MetadataRowProps {
   label: string;
   name: string;
   value: string | number;
+  sessionExists: boolean;
   sessionValue: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type: string;
@@ -377,11 +381,12 @@ const MetadataRow = ({
   label,
   name,
   value,
+  sessionExists,
   sessionValue,
   onChange,
   type,
 }: MetadataRowProps) => {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(sessionExists);
 
   const handleSessionValueClick = () => {
     // Simulate an input change event with the session value
@@ -396,7 +401,7 @@ const MetadataRow = ({
   };
 
   return (
-    <div className="grid grid-cols-8 items-center gap-4">
+    <div className={isVisible ? "grid grid-cols-8 items-center gap-4" : "grid grid-cols-4 items-center gap-4"}>
       <Label htmlFor={name} className="text-right col-span-1">
         {label}
       </Label>
@@ -406,7 +411,7 @@ const MetadataRow = ({
         name={name}
         value={value}
         onChange={onChange}
-        className={isVisible ? "col-span-3" : "col-span-7"} // Expands on hide
+        className="col-span-3" // Expands on hide
       />
       {isVisible ? (
         <span className="col-span-4 flex space-x-1">
