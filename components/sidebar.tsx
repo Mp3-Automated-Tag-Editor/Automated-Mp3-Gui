@@ -30,30 +30,30 @@ const routes = [
     color: "text-pink-700",
     href: '/download',
   },
-  {
-    label: 'Stream & Connect',
-    icon: AudioLines,
-    color: "text-blue-700",
-    href: '/stream',
-  },
+  // {
+  //   label: 'Stream & Connect',
+  //   icon: AudioLines,
+  //   color: "text-blue-700",
+  //   href: '/stream',
+  // },
   {
     label: 'Edit',
     icon: Pencil,
     color: "text-orange-700",
     href: '/edit',
   },
-  {
-    label: 'Music Playstation',
-    icon: Music,
-    color: "text-green-700",
-    href: '/music',
-  },
-  {
-    label: 'Statistics',
-    icon: BarChartHorizontalIcon,
-    color: "text-yellow-700",
-    href: '/stats',
-  }
+  // {
+  //   label: 'Music Playstation',
+  //   icon: Music,
+  //   color: "text-green-700",
+  //   href: '/music',
+  // },
+  // {
+  //   label: 'Statistics',
+  //   icon: BarChartHorizontalIcon,
+  //   color: "text-yellow-700",
+  //   href: '/stats',
+  // }
   // {
   //   label: 'Settings',
   //   icon: Settings2,
