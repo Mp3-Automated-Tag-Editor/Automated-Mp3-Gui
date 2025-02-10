@@ -1,7 +1,5 @@
 "use client";
-import { Command } from '@tauri-apps/api/shell'
-
-import { message, open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/api/dialog";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Dialog, DialogSessions } from "@/components/dialog";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { Packet } from '@/types';
 import { SimpleLine } from '@/components/terminal-items';
 
 const DownloadMusic = () => {
@@ -32,20 +29,6 @@ const DownloadMusic = () => {
     setUrl(event.target.value);
   };
 
-  // async function startDownloadTest() {
-  //   const dynamicOutputPath = './test/music';
-  //   const dynamicMetadataUrl = 'https://www.youtube.com/watch?v=roYfihZ_gJ0&list=PLI7-lKwh3jzYM6xlM-R_PKW5YdNhgW1aD&index=2';
-
-  //   // Prepare the command with dynamic arguments
-  //   const command = Command.sidecar('../bin/auto-mp3-downloader.exe', [
-  //     '--output', dynamicOutputPath,
-  //     '--quality', (320).toString(),
-  //     '--metadata', dynamicMetadataUrl
-  //   ]);
-
-  //   const output = await command.execute()
-  //   console.log(output)
-  // }
   useEffect(() => {
     async function listenDownloadDetails() {
       let ptr = 0;
@@ -180,7 +163,6 @@ const DownloadMusic = () => {
                     </li>
                   </ol>
                 </p>
-                {/* <div className="text-sm pb-2">Happy Downloading!</div> */}
                 <div className="space-y-4">
                   <div className="">
                     <Label htmlFor="url">Spotify/Youtube URL:</Label>
@@ -225,7 +207,6 @@ const DownloadMusic = () => {
                     </Button>
                   </div>
                 </div>
-                {/* Add button to select download directory / create download directory */}
               </div>
               {/* <Separator orientation="vertical" className="h-full w-[1px] bg-gray-300" /> */}
 

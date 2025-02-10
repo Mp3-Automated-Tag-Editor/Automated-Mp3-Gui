@@ -5,7 +5,6 @@ import { Heading } from "@/components/heading";
 
 import { z } from "zod"
 
-import songDate from '../data/song.json'
 import { songSchema, Song } from "../data/schema"
 import { DataTable } from "../components/data-table";
 import { columns } from "../components/columns";
@@ -13,7 +12,6 @@ import { useSearchParams } from "next/navigation";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
 import Loading from "@/components/loading";
-import { Button } from "@/components/ui/button";
 import { SessionProvider } from "@/components/context/SessionContext/SessionContext";
 
 const fetchSongs = async (directory: string | null, pageNo: number | null, pageSize: number) => {
@@ -57,7 +55,6 @@ const Edit = () => {
       setLoading(true);
       const fetchedSongs = await fetchSongs(directory, Number(pageNo), Number(pageSize));
       setSongs(fetchedSongs);
-      //       setSongs(prevSongs => [...prevSongs, ...fetchedSongs]);
       setLoading(false);
     };
 

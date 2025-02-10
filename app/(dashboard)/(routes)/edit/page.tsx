@@ -7,12 +7,11 @@ import { useEffect, useState } from "react";
 
 import { z } from "zod"
 
-import songDate from './data/song.json'
 import { invoke } from '@tauri-apps/api/tauri'
 import { sessionSchema } from "./data/schema"
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { message, open } from '@tauri-apps/api/dialog'
+import { open } from '@tauri-apps/api/dialog'
 import { DialogSessions } from "@/components/dialog";
 
 const fetchSessions = async () => {

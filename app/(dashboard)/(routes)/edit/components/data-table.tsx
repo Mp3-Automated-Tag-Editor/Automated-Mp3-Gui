@@ -25,8 +25,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
-
 import { DataTablePagination } from "../components/data-table-pagination";
 import { DataTableToolbar } from "../components/data-table-toolbar";
 import { Song } from "../data/schema";

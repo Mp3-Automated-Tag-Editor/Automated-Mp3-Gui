@@ -28,7 +28,6 @@ export default function RootLayout({
 
   return (
     <html lang="en" className='scroll-smooth' style={{scrollBehavior:'smooth', scrollMarginTop: "14px", scrollbarColor: "green"}}>
-      {/* <TitleBar titleText={""}/> */}
       <ThemeProvider
         attribute="class"
         defaultTheme="system"

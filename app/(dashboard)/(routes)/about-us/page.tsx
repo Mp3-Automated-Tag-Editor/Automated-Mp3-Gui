@@ -1,10 +1,10 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { Github, Info, ScrollText } from "lucide-react";
 import { Heading } from "@/components/heading";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
+import Link from "next/link";
 
 const Start = () => {
   return (
@@ -21,7 +21,6 @@ const Start = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 my-4 px-16">
           <div className="col-span-2">
             <Image
-              // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
               src={"/about-us.JPG"}
               width={300}
               height={300}
@@ -79,7 +78,7 @@ const Start = () => {
               </svg>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">184</div>
+              <div className="text-2xl font-bold">18</div>
             </CardContent>
           </Card>
           <Card>
@@ -101,14 +100,18 @@ const Start = () => {
               </svg>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">18</div>
+              <div className="text-2xl font-bold">15</div>
             </CardContent>
           </Card>
-          <Card>
-
+          <Card className="flex flex-col items-center justify-center">
+            <Link href="https://github.com/Mp3-Automated-Tag-Editor" target="_blank">
+              <Github className="h-10 w-10" />
+            </Link>
           </Card>
-          <Card>
-            
+          <Card className="flex flex-col items-center justify-center">
+            <Link href="https://doi.org/10.4018/978-1-6684-8098-4.ch012" target="_blank">
+              <ScrollText className="h-10 w-10" />
+            </Link>
           </Card>
         </div>
 

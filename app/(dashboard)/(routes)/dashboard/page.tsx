@@ -5,22 +5,8 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { tools } from "@/constants";
-// import { useEffect, useState } from "react";
-// import { invoke } from "@tauri-apps/api/tauri"
 
 export default function HomePage() {
-
-//   useEffect(() => {
-//     setTimeout(() => {
-//       try {
-//         invoke('close_splashscreen');
-//       } catch (e) {
-//         console.log(e);
-//       }
-    
-//   }, 5000);
-// }, [])
-
 
 const router = useRouter();
 

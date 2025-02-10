@@ -5,8 +5,8 @@ import { Heading } from "@/components/heading";
 import { Progress } from "@/components/ui/progress";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
-import { array, boolean, number, z } from "zod";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { z } from "zod";
 import "../../../globals.css";
 import { Store } from "tauri-plugin-store-api";
 import {
@@ -27,18 +27,7 @@ import {
   Status,
   ScrapeResult,
 } from "@/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 
 const store = new Store(".settings.dat");
 
