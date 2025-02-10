@@ -17,6 +17,7 @@ export const MobileSidebar = (
   // }
 ) => {
   const [isMounted, setIsMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
@@ -25,9 +26,7 @@ export const MobileSidebar = (
   if (!isMounted) {
     return null;
   }
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
+  
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };

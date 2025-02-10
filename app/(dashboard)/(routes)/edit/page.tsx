@@ -178,7 +178,7 @@ const Edit = () => {
           </div>
           {displaySessions ? <div>
             {sessions.map((session, index) => (
-              <DialogSessions msg={session.path + " - " + session.total_files + " processed file(s)"} title={formatDate(session.date) + " - Session " + session.session_number} href={`/edit/editPage?directory=${session.path}&totalSongs=${totalSongs}&pageNo=${1}&pageSize=${10}&session=${session.table_name}&accuracy=${session.processed_files/session.total_files*100}`} variant="none" type={false} />
+              <DialogSessions key={index} msg={session.path + " - " + session.total_files + " processed file(s)"} title={formatDate(session.date) + " - Session " + session.session_number} href={`/edit/editPage?directory=${session.path}&totalSongs=${totalSongs}&pageNo=${1}&pageSize=${10}&session=${session.table_name}&accuracy=${session.processed_files/session.total_files*100}`} variant="none" type={false} />
             ))}
           </div> : null}
         </div>
