@@ -1,7 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use dotenv::dotenv;
 use rusqlite::Result;
 use std::env;
 use std::fs;
@@ -21,14 +20,22 @@ use log::debug;
 use log::error;
 use log::info;
 use log::trace;
-use log::warn;
 
 // Main Func
 fn main() {
     std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
 
-    dotenv().ok();
+    if cfg!(debug_assertions) {
+        dotenvy::from_filename(".env.development").ok();
+    } else {
+        let prod_env: &str =  include_str!("../.env.production");
+        print!("Prod Env: {}", prod_env);
+        for item in dotenvy::from_read_iter(prod_env.as_bytes()) {
+            let (key, value) = item.unwrap();
+            std::env::set_var(key, value);
+        }
+    }
 
     trace!(
         "Environment Successfully Initialized: {}",

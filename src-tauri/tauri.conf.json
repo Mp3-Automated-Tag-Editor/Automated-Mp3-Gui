@@ -10,8 +10,8 @@
     ]
   },
   "package": {
-    "productName": "auto-mp3",
-    "version": "1.9.2"
+    "productName": "auto-mp3-beta",
+    "version": "2.0.0"
   },
   "tauri": {
     "allowlist": {

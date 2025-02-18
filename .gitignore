@@ -6,6 +6,8 @@
 .pnp.js
 .yarn/install-state.gz
 .env
+.env.development
+.env.production
 
 #src-tauri
 /src-tauri/.userdata/
