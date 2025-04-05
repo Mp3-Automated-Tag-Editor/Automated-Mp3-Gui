@@ -44,8 +44,8 @@ Your sleek, local-first, blazing-fast **desktop application** for editing MP3 ta
 |------------|-------------------------|
 | UI         | React + TypeScript + Tailwind CSS |
 | Backend    | Rust + [Lofty](https://crates.io/crates/lofty) |
-| Framework  | [Tauri](https://tauri.app) |
-| Build Tool | Vite + Cargo            |
+| Framework  | [Tauri](https://tauri.app) + ShadCN |
+| Build Tool | Next.js + Cargo            |
 
 ---
 
