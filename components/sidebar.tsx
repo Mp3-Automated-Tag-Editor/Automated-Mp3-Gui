@@ -65,13 +65,8 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
   const pathname = usePathname();
 
   return (
-    <div className="space-y-4 py-4 flex flex-col h-full bg-[#000000] text-white">
+    <div className="flex h-full flex-col space-y-4 bg-black py-4 text-white">
       <div className="px-3 py-2 flex-1">
-        {/* <Link href="/dashboard" className="whitespace-nowrap duration-300 flex justify-center p-3 w-full pl-3 mb-4">
-          <div className={`relative align-baseline rounded-lg transition-opacity duration-300 ${isSidebarOpen ? "h-20 w-40" : "h-10 w-10 mb-10" }`}>
-            {isSidebarOpen ? <Image fill alt="Logo" src="/1.png" className="object-cover" /> : <Image fill alt="Logo" src="/logo.png" className="object-cover" />}
-          </div>
-        </Link> */}
         <Link href="/dashboard" className="whitespace-nowrap duration-300 flex justify-center p-3 w-full pl-3 mb-4">
           <div className={`relative align-baseline rounded-lg transition-all duration-500 ease-in-out ${isSidebarOpen ? "h-20 w-44" : "h-10 w-10 mb-10"}`}>
             {isSidebarOpen ? (
