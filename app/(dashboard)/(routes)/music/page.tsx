@@ -1,259 +1,445 @@
 "use client";
 
-import { Metadata } from "next"
-import Image from "next/image"
-import { PlusCircledIcon } from "@radix-ui/react-icons"
+import { useMemo, useState } from "react";
+import { PlusCircledIcon } from "@radix-ui/react-icons";
+import { open } from "@tauri-apps/api/dialog";
+import { Music } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs"
-
-import { AlbumArtwork } from "./components/album-artwork"
-import { Menu } from "./components/menu"
-import { PodcastEmptyPlaceholder } from "./components/podcast-empty-placeholder"
-import { Sidebar } from "./components/sidebar"
-import { listenNowAlbums, madeForYouAlbums } from "./data/albums"
-import { playlists } from "./data/playlists"
-import { Music } from "lucide-react";
-import { useState } from "react";
-// import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
-// import { ChatCompletionRequestMessage } from "openai";
-
-// import { BotAvatar } from "@/components/bot-avatar";
+} from "@/components/ui/tabs";
 import { Heading } from "@/components/heading";
-// import { Input } from "@/components/ui/input";
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
-import { cn } from "@/lib/utils";
-// import { Loader } from "@/components/loader";
-// import { UserAvatar } from "@/components/user-avatar";
-import { Empty } from "@/components/ui/empty";
-// import { useProModal } from "@/hooks/use-pro-modal";
+import { usePlayer } from "@/components/context/PlayerContext";
+import type { MusicView } from "@/components/context/PlayerContext/types";
+import { useToast } from "@/components/ui/use-toast";
 
+import { AlbumArtwork } from "./components/album-artwork";
+import { Sidebar } from "./components/sidebar";
+import { PlayerBar } from "./components/player-bar";
+import { SongList } from "./components/song-list";
+import { NowPlayingPanel } from "./components/now-playing-panel";
 
 const MusicPlayer = () => {
-  const router = useRouter();
-  // const proModal = useProModal();
-  // const [messages, setMessages] = useState<ChatCompletionRequestMessage[]>([]);
+  const {
+    tracks,
+    albums,
+    artists,
+    listenNowAlbums,
+    madeForYouAlbums,
+    playlists,
+    likedTracks,
+    isLoading,
+    error,
+    libraryPath,
+    loadFolder,
+    playLibraryShuffled,
+    getPlaylistTracks,
+    createPlaylist,
+  } = usePlayer();
+  const { toast } = useToast();
 
-  // const form = useForm<z.infer<typeof formSchema>>({
-  //   resolver: zodResolver(formSchema),
-  //   defaultValues: {
-  //     prompt: ""
-  //   }
-  // });
+  const [tab, setTab] = useState("music");
+  const [view, setView] = useState<MusicView>("home");
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
-  // const isLoading = form.formState.isSubmitting;
+  const activePlaylistTracks = useMemo(() => {
+    if (!activePlaylistId) return [];
+    return getPlaylistTracks(activePlaylistId);
+  }, [activePlaylistId, getPlaylistTracks, playlists, tracks]);
 
-  // const onSubmit = async (values: z.infer<typeof formSchema>) => {
-  //   try {
-  //     const userMessage: ChatCompletionRequestMessage = { role: "user", content: values.prompt };
-  //     const newMessages = [...messages, userMessage];
+  const activePlaylistName =
+    playlists.find((p) => p.id === activePlaylistId)?.name ?? "Playlist";
 
-  //     const response = await axios.post('/api/conversation', { messages: newMessages });
-  //     setMessages((current) => [...current, userMessage, response.data]);
+  const handleAddMusic = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select a music folder",
+      });
+      if (!selected || Array.isArray(selected)) return;
+      await loadFolder(selected);
+      toast({
+        title: "Library loaded",
+        description: selected,
+      });
+      setView("home");
+      setTab("music");
+    } catch (e: any) {
+      toast({
+        title: "Could not open folder",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    }
+  };
 
-  //     form.reset();
-  //   } catch (error: any) {
-  //     if (error?.response?.status === 403) {
-  //       proModal.onOpen();
-  //     } else {
-  //       toast.error("Something went wrong.");
-  //     }
-  //   } finally {
-  //     router.refresh();
-  //   }
-  // }
+  const onNavigate = (next: MusicView, playlistId?: string | null) => {
+    setView(next);
+    setActivePlaylistId(playlistId ?? null);
+    if (next === "songs" || next === "playlist") setTab("list");
+    else if (next === "player") setTab("player");
+    else setTab("music");
+  };
+
+  const emptyLibrary = !isLoading && tracks.length === 0;
+
+  const albumGrid = (list: typeof albums, size: "lg" | "sm" = "lg") => (
+    <ScrollArea>
+      <div className="flex space-x-4 pb-4">
+        {list.map((album) => (
+          <AlbumArtwork
+            key={`${album.name}-${album.artist}`}
+            album={album}
+            className={size === "lg" ? "w-[250px]" : "w-[150px]"}
+            aspectRatio={size === "lg" ? "portrait" : "square"}
+            width={size === "lg" ? 250 : 150}
+            height={size === "lg" ? 330 : 150}
+          />
+        ))}
+      </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+  );
+
+  const renderMainContent = () => {
+    if (isLoading) {
+      return (
+        <p className="py-12 text-sm text-muted-foreground">Loading library…</p>
+      );
+    }
+
+    if (emptyLibrary) {
+      return (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
+          <h3 className="text-lg font-semibold">No music loaded</h3>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Choose a folder of MP3 files to build your library. Your last folder
+            is remembered for next time.
+          </p>
+          <Button onClick={handleAddMusic}>
+            <PlusCircledIcon className="mr-2 h-4 w-4" />
+            Add music
+          </Button>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      );
+    }
+
+    if (view === "songs" || tab === "list") {
+      if (view === "playlist" && activePlaylistId) {
+        return (
+          <div className="h-full min-h-0">
+            <SongList
+              tracks={activePlaylistTracks}
+              title={activePlaylistName}
+              description={`${activePlaylistTracks.length} songs`}
+              emptyMessage="This playlist is empty."
+            />
+          </div>
+        );
+      }
+      return (
+        <div className="h-full min-h-0">
+          <SongList
+            tracks={tracks}
+            title="Songs"
+            description={`${tracks.length} tracks${
+              libraryPath ? ` from ${libraryPath}` : ""
+            }`}
+          />
+        </div>
+      );
+    }
+
+    if (tab === "player" || view === "player") {
+      return (
+        <div className="h-full min-h-0">
+          <NowPlayingPanel />
+        </div>
+      );
+    }
+
+    if (view === "browse" || view === "albums") {
+      return (
+        <>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Albums</h2>
+            <p className="text-sm text-muted-foreground">
+              {albums.length} albums in your library
+            </p>
+          </div>
+          <Separator className="my-4" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+            {albums.map((album) => (
+              <AlbumArtwork
+                key={`${album.name}-${album.artist}`}
+                album={album}
+                aspectRatio="square"
+                width={180}
+                height={180}
+              />
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (view === "artists") {
+      return (
+        <>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Artists</h2>
+            <p className="text-sm text-muted-foreground">
+              {artists.length} artists
+            </p>
+          </div>
+          <Separator className="my-4" />
+          <div className="space-y-6">
+            {artists.map((artist) => (
+              <div key={artist.name}>
+                <h3 className="mb-2 text-lg font-medium">{artist.name}</h3>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {artist.tracks.length} songs · {artist.albums.length} albums
+                </p>
+                {albumGrid(artist.albums, "sm")}
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (view === "playlists") {
+      return (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Playlists
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Your saved playlists
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const name = window.prompt("New playlist name");
+                if (!name?.trim()) return;
+                const id = createPlaylist(name.trim());
+                toast({ title: "Playlist created", description: name.trim() });
+                onNavigate("playlist", id);
+              }}
+            >
+              <PlusCircledIcon className="mr-2 h-4 w-4" />
+              New playlist
+            </Button>
+          </div>
+          <Separator className="my-4" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {playlists.map((pl) => (
+              <button
+                key={pl.id}
+                type="button"
+                className="rounded-lg border p-4 text-left hover:bg-accent"
+                onClick={() => onNavigate("playlist", pl.id)}
+              >
+                <p className="font-medium">{pl.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {pl.trackPaths.length} songs
+                </p>
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (view === "made-for-you") {
+      return (
+        <>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Made for You
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Liked albums and picks from your library
+            </p>
+          </div>
+          <Separator className="my-4" />
+          {likedTracks.length > 0 && (
+            <>
+              <SongList
+                tracks={likedTracks}
+                title="Liked Songs"
+                description={`${likedTracks.length} songs`}
+                emptyMessage="No liked songs yet."
+                fillHeight={false}
+              />
+              <Separator className="my-6" />
+            </>
+          )}
+          {albumGrid(madeForYouAlbums, "sm")}
+        </>
+      );
+    }
+
+    if (view === "playlist" && activePlaylistId) {
+      return (
+        <div className="h-full min-h-0">
+          <SongList
+            tracks={activePlaylistTracks}
+            title={activePlaylistName}
+            description={`${activePlaylistTracks.length} songs`}
+            emptyMessage="This playlist is empty."
+          />
+        </div>
+      );
+    }
+
+    // Home / Listen Now
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Listen Now
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {recentLabel(listenNowAlbums.length, libraryPath)}
+            </p>
+          </div>
+        </div>
+        <Separator className="my-4" />
+        <div className="relative">
+          {listenNowAlbums.length
+            ? albumGrid(listenNowAlbums, "lg")
+            : albumGrid(albums.slice(0, 8), "lg")}
+        </div>
+        <div className="mt-6 space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Made for You
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Personal picks from your library
+          </p>
+        </div>
+        <Separator className="my-4" />
+        <div className="relative">{albumGrid(madeForYouAlbums, "sm")}</div>
+      </>
+    );
+  };
 
   return (
-    <div>
+    <div className="flex h-[calc(100vh-40px)] min-h-0 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 lg:px-8">
+        <Heading
+          title="Music Playstation"
+          description="Play your local MP3 library."
+          icon={Music}
+          iconColor="text-green-700"
+          otherProps="mb-4 shrink-0 px-0"
+        />
 
-      <div className="px-4 lg:px-8">
-        <div>
-          <>
-            <Heading
-              title="Music Playstation"
-              description="Our very own Music Player."
-              icon={Music}
-              iconColor="text-green-700"
-              otherProps="mb-4"
-            // bgColor="bg-violet-500/10"
-            />
-            <div className="md:hidden">
-              <Image
-                src="/examples/music-light.png"
-                width={1280}
-                height={1114}
-                alt="Music"
-                className="block dark:hidden"
-              />
-              <Image
-                src="/examples/music-dark.png"
-                width={1280}
-                height={1114}
-                alt="Music"
-                className="hidden dark:block"
-              />
-            </div>
-            <div className="hidden md:block">
-              {/* <Menu /> */}
-
-              <div className="border-t">
-                <div className="bg-background">
-                  <div className="grid lg:grid-cols-5">
-                    <div className="col-span-3 lg:col-span-4 lg:border-r">
-                      <div className="h-full px-4 py-6 lg:px-8">
-                        <Tabs defaultValue="music" className="h-full space-y-6">
-                          <div className="space-between flex items-center">
-                            <TabsList>
-                              <TabsTrigger value="music" className="relative">
-                                Home
-                              </TabsTrigger>
-                              <TabsTrigger value="list">List</TabsTrigger>
-                              <TabsTrigger value="player">Music Player</TabsTrigger>
-                              <TabsTrigger value="live" disabled>
-                                Live
-                              </TabsTrigger>
-                            </TabsList>
-                            <div className="ml-auto mr-4">
-                              <Button>
-                                <PlusCircledIcon className="mr-2 h-4 w-4" />
-                                Add music
-                              </Button>
-                            </div>
-                          </div>
-                          <TabsContent
-                            value="music"
-                            className="border-none p-0 outline-none"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <h2 className="text-2xl font-semibold tracking-tight">
-                                  Listen Now
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                  Top picks for you. Updated daily.
-                                </p>
-                              </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <div className="relative">
-                              <ScrollArea>
-                                <div className="flex space-x-4 pb-4">
-                                  {listenNowAlbums.map((album) => (
-                                    <AlbumArtwork
-                                      key={album.name}
-                                      album={album}
-                                      className="w-[250px]"
-                                      aspectRatio="portrait"
-                                      width={250}
-                                      height={330}
-                                    />
-                                  ))}
-                                </div>
-                                <ScrollBar orientation="horizontal" />
-                              </ScrollArea>
-                            </div>
-                            <div className="mt-6 space-y-1">
-                              <h2 className="text-2xl font-semibold tracking-tight">
-                                Made for You
-                              </h2>
-                              <p className="text-sm text-muted-foreground">
-                                Your personal playlists. Updated daily.
-                              </p>
-                            </div>
-                            <Separator className="my-4" />
-                            <div className="relative">
-                              <ScrollArea>
-                                <div className="flex space-x-4 pb-4">
-                                  {madeForYouAlbums.map((album) => (
-                                    <AlbumArtwork
-                                      key={album.name}
-                                      album={album}
-                                      className="w-[150px]"
-                                      aspectRatio="square"
-                                      width={150}
-                                      height={150}
-                                    />
-                                  ))}
-                                </div>
-                                <ScrollBar orientation="horizontal" />
-                              </ScrollArea>
-                            </div>
-                          </TabsContent>
-                          <TabsContent
-                            value="list"
-                            className="h-full flex-col border-none p-0 data-[state=active]:flex"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <h2 className="text-2xl font-semibold tracking-tight">
-                                  New Episodes
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                  Your favorite podcasts. Updated daily.
-                                </p>
-                              </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <PodcastEmptyPlaceholder />
-                          </TabsContent>
-                          <TabsContent
-                            value="player"
-                            className="h-full flex-col border-none p-0 data-[state=active]:flex"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <h2 className="text-2xl font-semibold tracking-tight">
-                                  New Episodes
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                  Your favorite podcasts. Updated daily.
-                                </p>
-                              </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <PodcastEmptyPlaceholder />
-                          </TabsContent>
-                          <TabsContent
-                            value="live"
-                            className="h-full flex-col border-none p-0 data-[state=active]:flex"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <h2 className="text-2xl font-semibold tracking-tight">
-                                  New Episodes
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                  Your favorite podcasts. Updated daily.
-                                </p>
-                              </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <PodcastEmptyPlaceholder />
-                          </TabsContent>
-                        </Tabs>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t">
+          <div className="flex min-h-0 flex-1 flex-col bg-background">
+            <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-5">
+              <div className="col-span-full flex min-h-0 flex-col overflow-hidden lg:col-span-4 lg:border-r">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-4 lg:px-6 lg:py-6">
+                  <Tabs
+                    value={tab}
+                    onValueChange={(v) => {
+                      setTab(v);
+                      if (v === "music") setView("home");
+                      if (v === "list") setView("songs");
+                      if (v === "player") setView("player");
+                    }}
+                    className="flex min-h-0 flex-1 flex-col gap-4"
+                  >
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <TabsList>
+                        <TabsTrigger value="music">Home</TabsTrigger>
+                        <TabsTrigger value="list">List</TabsTrigger>
+                        <TabsTrigger value="player">Music Player</TabsTrigger>
+                        <TabsTrigger value="live" disabled>
+                          Live
+                        </TabsTrigger>
+                      </TabsList>
+                      <div className="ml-auto">
+                        <Button onClick={handleAddMusic} disabled={isLoading}>
+                          <PlusCircledIcon className="mr-2 h-4 w-4" />
+                          Add music
+                        </Button>
                       </div>
                     </div>
-                    <Sidebar playlists={playlists} className="hidden lg:block" />
-
-                  </div>
+                    <TabsContent
+                      value="music"
+                      className="mt-0 min-h-0 flex-1 overflow-y-auto border-none p-0 outline-none data-[state=inactive]:hidden"
+                    >
+                      {renderMainContent()}
+                    </TabsContent>
+                    <TabsContent
+                      value="list"
+                      className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden border-none p-0 data-[state=active]:flex data-[state=inactive]:hidden"
+                    >
+                      {renderMainContent()}
+                    </TabsContent>
+                    <TabsContent
+                      value="player"
+                      className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden border-none p-0 data-[state=active]:flex data-[state=inactive]:hidden"
+                    >
+                      {renderMainContent()}
+                    </TabsContent>
+                  </Tabs>
                 </div>
               </div>
+              <Sidebar
+                playlists={playlists}
+                activeView={view}
+                activePlaylistId={activePlaylistId}
+                className="hidden min-h-0 overflow-y-auto lg:block"
+                onNavigate={onNavigate}
+                onRadio={() => {
+                  if (!tracks.length) {
+                    toast({
+                      title: "No music loaded",
+                      description: "Add a music folder first.",
+                    });
+                    return;
+                  }
+                  playLibraryShuffled();
+                  setView("player");
+                  setTab("player");
+                  toast({
+                    title: "Radio started",
+                    description: "Shuffling your library",
+                  });
+                }}
+              />
             </div>
-          </>
+          </div>
         </div>
       </div>
-
+      <PlayerBar
+        onOpenPlayer={() => {
+          setTab("player");
+          setView("player");
+        }}
+      />
     </div>
   );
+};
+
+function recentLabel(count: number, path: string | null) {
+  if (!count) return "Add music to see recommendations.";
+  return path ? `From your library · ${path}` : "Top picks from your library.";
 }
 
 export default MusicPlayer;

@@ -1,16 +1,11 @@
-export type Playlist = (typeof playlists)[number]
+import type { UserPlaylist } from "@/components/context/PlayerContext/types";
 
-export const playlists = [
-  "Recently Added",
+/** Built-in playlist names used before a library is loaded. */
+export type Playlist = string;
+
+export const playlists: Playlist[] = [
+  "Liked Songs",
   "Recently Played",
-  "Top Songs",
-  "Top Albums",
-  "Top Artists",
-  "Logic Discography",
-  "Bedtime Beats",
-  "Feeling Happy",
-  "I miss Y2K Pop",
-  "Runtober",
-  "Mellow Days",
-  "Eminem Essentials",
-]
+];
+
+export type { UserPlaylist };
