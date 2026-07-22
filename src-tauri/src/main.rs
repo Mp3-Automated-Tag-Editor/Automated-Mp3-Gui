@@ -20,26 +20,34 @@ use log::debug;
 use log::error;
 use log::info;
 use log::trace;
+use log::warn;
 
 // Main Func
 fn main() {
     std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
 
-    if cfg!(debug_assertions) {
-        dotenvy::from_filename(".env.development").ok();
-    } else {
-        let prod_env: &str =  include_str!("../.env.production");
-        print!("Prod Env: {}", prod_env);
+    #[cfg(debug_assertions)]
+    {
+        // Look in src-tauri (Cargo cwd) and repo root
+        if dotenvy::from_filename(".env.development").is_err() {
+            dotenvy::from_filename("../.env.development").ok();
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        // Only compiled for release — create src-tauri/.env.production before `tauri build`
+        let prod_env: &str = include_str!("../.env.production");
         for item in dotenvy::from_read_iter(prod_env.as_bytes()) {
-            let (key, value) = item.unwrap();
+            let (key, value) = item.expect("Invalid .env.production entry");
             std::env::set_var(key, value);
         }
     }
 
     trace!(
         "Environment Successfully Initialized: {}",
-        env::var("ENV").unwrap()
+        env::var("ENV").unwrap_or_else(|_| "unset".into())
     );
 
     tauri::Builder::default()
@@ -61,7 +69,8 @@ fn main() {
             long_job,
             retrieve_all_sessions,
             retrieve_sessions_data,
-            download_music
+            download_music,
+            lookup_artist_country
             // scan_paths
         ])
         .setup(|app| {
@@ -179,11 +188,8 @@ fn check_directory(var: String) -> Result<(bool, usize), (bool, String)> {
             for entry in entries {
                 match entry {
                     Ok(path) => {
-                        let file_name = path.file_name();
-                        if let Some(file_str) = file_name.to_str() {
-                            if file_str.ends_with(".mp3") {
-                                mp3_count += 1;
-                            }
+                        if path.path().is_file() && edit::is_mp3_file(&path.path()) {
+                            mp3_count += 1;
                         }
                     }
                     Err(_) => return Err((false, format!("This directory cannot be selected as there are no Mp3 files present. Kindly choose the directory that has the files required to be scraped, Failed to read entry in directory: {}", var))),
@@ -201,21 +207,36 @@ async fn read_music_directory_multithreaded(directory: String) -> Result<Vec<typ
     let songs = tokio::task::spawn_blocking(move || {
         info!("dir: {}", directory_clone);
         let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
-        let mut id_num = 0;
-        let paths = fs::read_dir(directory_clone.clone()).unwrap();
-        for path in paths {
+        let mut id_num = 0u32;
+        let paths = fs::read_dir(&directory_clone)
+            .map_err(|e| format!("Failed to read directory: {}", e))?;
+        for entry in paths {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    warn!("Skipping unreadable directory entry: {}", e);
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.is_file() || !edit::is_mp3_file(&path) {
+                continue;
+            }
             id_num += 1;
-            let file_name = path.as_ref().unwrap().file_name();
-            if file_name.clone().to_str().unwrap().ends_with(".mp3") {
-                let file_path = directory_clone.clone() + "\\" + file_name.to_str().unwrap();
-                match edit::get_details_for_song(&file_path, id_num, file_name.to_str().unwrap()) {
-                    Ok(single_song) => songs.push(single_song),
-                    Err(e) => return Err(e)
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            let file_path = path.to_string_lossy().to_string();
+            match edit::get_details_for_song(&file_path, id_num, &file_name_str) {
+                Ok(single_song) => songs.push(single_song),
+                Err(e) => {
+                    warn!("Skipping unreadable MP3 {}: {}", file_path, e);
                 }
             }
         }
-        Ok(songs)
-    }).await.map_err(|e| format!("Task failed: {:?}", e))??;
+        Ok::<Vec<types::EditViewSongMetadata>, String>(songs)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {:?}", e))??;
     Ok(songs)
 }
 
@@ -223,16 +244,31 @@ async fn read_music_directory_multithreaded(directory: String) -> Result<Vec<typ
 fn read_music_directory(directory: String) -> Result<Vec<types::EditViewSongMetadata>, String> {
     info!("dir: {}", directory);
     let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
-    let mut id_num = 0;
-    let paths: fs::ReadDir = fs::read_dir(directory.clone()).unwrap();
-    for path in paths {
-        id_num+=1;
-        let file_name = path.as_ref().unwrap().file_name();
-        if file_name.clone().to_str().unwrap().ends_with(".mp3") {
-            let file_path = directory.clone() + "\\" + file_name.to_str().unwrap();
-            match edit::get_details_for_song(&file_path, id_num, file_name.to_str().unwrap()) {
-                Ok(single_song) => songs.push(single_song),
-                Err(e) => return Err(e)
+    let mut id_num = 0u32;
+    let paths = fs::read_dir(&directory)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+    for entry in paths {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Skipping unreadable directory entry: {}", e);
+                continue;
+            }
+        };
+        let path = entry.path();
+        // Only MP3s — ignore folders and other media/docs silently
+        if !path.is_file() || !edit::is_mp3_file(&path) {
+            continue;
+        }
+        id_num += 1;
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_string_lossy();
+        let file_path = path.to_string_lossy().to_string();
+        match edit::get_details_for_song(&file_path, id_num, &file_name_str) {
+            Ok(single_song) => songs.push(single_song),
+            Err(e) => {
+                // Corrupt/truncated files must not crash the app
+                warn!("Skipping unreadable MP3 {}: {}", file_path, e);
             }
         }
     }
@@ -244,32 +280,44 @@ fn read_music_directory_paginated(directory: String, page_number: usize, page_si
     info!("dir: {}", directory);
     let mut songs: Vec<types::EditViewSongMetadata> = Vec::new();
 
-    let paths = fs::read_dir(directory.clone()).unwrap();
+    let paths = fs::read_dir(&directory)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
     let mut mp3_paths: Vec<String> = Vec::new();
     let mut mp3_file_name: Vec<String> = Vec::new();
-    
-    // Collect all mp3 file paths
-    for path in paths {
-        let file_name = path.as_ref().unwrap().file_name();
-        if file_name.clone().to_str().unwrap().ends_with(".mp3") {
-            let file_path = directory.clone() + "\\" + file_name.clone().to_str().unwrap();
-            mp3_paths.push(file_path);
-            mp3_file_name.push(file_name.to_str().unwrap().to_string());
+
+    for entry in paths {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Skipping unreadable directory entry: {}", e);
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() || !edit::is_mp3_file(&path) {
+            continue;
         }
+        mp3_paths.push(path.to_string_lossy().to_string());
+        mp3_file_name.push(entry.file_name().to_string_lossy().to_string());
     }
 
-    // Determine the range of songs for the requested page
     let start_index = page_number * page_size;
     let end_index = std::cmp::min(start_index + page_size, mp3_paths.len());
 
     if start_index >= mp3_paths.len() {
-        return Ok(songs); // Return an empty vector if the start index is out of range
+        return Ok(songs);
     }
 
     for i in start_index..end_index {
-        match edit::get_details_for_song(&mp3_paths[i], i.try_into().unwrap(), &mp3_file_name[i]) {
+        match edit::get_details_for_song(
+            &mp3_paths[i],
+            i.try_into().unwrap_or(0),
+            &mp3_file_name[i],
+        ) {
             Ok(single_song) => songs.push(single_song),
-            Err(e) => return Err(e)
+            Err(e) => {
+                warn!("Skipping unreadable MP3 {}: {}", mp3_paths[i], e);
+            }
         }
     }
 
@@ -447,6 +495,120 @@ async fn get_server_health() -> Result<types::Server_Health, String> {
         }
         Err(err) => Err(format!("Failed to fetch data: {}", err)), // Return error if request fails
     }
+}
+
+#[derive(serde::Serialize)]
+struct ArtistCountryResult {
+    country: Option<String>,
+    #[serde(rename = "countryName")]
+    country_name: Option<String>,
+}
+
+fn mb_pick_country(artist: &serde_json::Value) -> (Option<String>, Option<String>) {
+    let country = artist
+        .get("country")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_uppercase())
+        .filter(|s| s.len() == 2);
+
+    let area_codes = artist
+        .pointer("/area/iso-3166-1-codes/0")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_uppercase())
+        .filter(|s| s.len() == 2);
+
+    let iso = country.or(area_codes);
+    let name = artist
+        .pointer("/area/name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    (iso, name)
+}
+
+#[tauri::command]
+async fn lookup_artist_country(artist: String) -> Result<ArtistCountryResult, String> {
+    let name = artist.trim();
+    if name.is_empty() {
+        return Ok(ArtistCountryResult {
+            country: None,
+            country_name: None,
+        });
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("Auto-Mp3-Gui/2.0.0 (local; music library country stats)")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let query = format!("artist:\"{}\"", name.replace('"', ""));
+    let search = client
+        .get("https://musicbrainz.org/ws/2/artist")
+        .query(&[("query", query.as_str()), ("fmt", "json"), ("limit", "5")])
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !search.status().is_success() {
+        return Err(format!("MusicBrainz search failed: {}", search.status()));
+    }
+
+    let body: serde_json::Value = search.json().await.map_err(|e| e.to_string())?;
+    let artists = body
+        .get("artists")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    if artists.is_empty() {
+        return Ok(ArtistCountryResult {
+            country: None,
+            country_name: None,
+        });
+    }
+
+    let needle = name.to_lowercase();
+    let mut best = artists[0].clone();
+    for candidate in &artists {
+        let cname = candidate
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if cname == needle {
+            best = candidate.clone();
+            break;
+        }
+    }
+
+    let (mut iso, mut cname) = mb_pick_country(&best);
+
+    if iso.is_none() {
+        if let Some(id) = best.get("id").and_then(|v| v.as_str()) {
+            tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+            let detail = client
+                .get(format!("https://musicbrainz.org/ws/2/artist/{}", id))
+                .query(&[("fmt", "json")])
+                .header("Accept", "application/json")
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if detail.status().is_success() {
+                let detail_body: serde_json::Value =
+                    detail.json().await.map_err(|e| e.to_string())?;
+                let picked = mb_pick_country(&detail_body);
+                iso = picked.0;
+                if cname.is_none() {
+                    cname = picked.1;
+                }
+            }
+        }
+    }
+
+    Ok(ArtistCountryResult {
+        country: iso,
+        country_name: cname,
+    })
 }
 
 #[tauri::command]

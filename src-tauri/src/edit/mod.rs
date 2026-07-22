@@ -5,75 +5,77 @@ use lofty::picture::MimeType;
 use lofty::picture::{Picture, PictureType};
 use lofty::probe::Probe;
 use lofty::tag::TagExt;
-use lofty::tag::{Accessor, ItemKey, Tag, TagType};
+use lofty::tag::{Accessor, ItemKey};
 use log::{debug, info, warn};
 use std::path::Path;
-use std::fs;
 
 use crate::types::{self, EditViewSongMetadata};
 
-// pub fn read_music_directory(directory: &str) -> Result<Vec<types::SongMetadata>, MusicError> {
-//     let mut songs = Vec::new();
+fn parse_u32_field(value: Option<&str>, default: u32) -> u32 {
+    value
+        .unwrap_or("")
+        .trim()
+        .parse::<u32>()
+        .unwrap_or(default)
+}
 
-//     for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
-//         if entry.path().is_file() {
-//             if let Some(extension) = entry.path().extension() {
-//                 if extension == "mp3" {
-//                     let path = entry.path().to_str().unwrap();
-//                     let tag = Tag::read_from_path(path)?;
-
-//                     let song = SongMetadata {
-//                         id: tag..to_string(),
-//                         fileName: path.to_string(),
-//                         artist: tag.artist().unwrap_or("").to_string(),
-//                         title: tag.title().unwrap_or("").to_string(),
-//                         album: tag.album().unwrap_or("").to_string(),
-//                         year: tag.year().unwrap_or(0),
-//                         track: tag.track().unwrap_or(0),
-//                         genre: tag.genre().unwrap_or("").to_string(),
-//                         comments: tag.comment().map_or("".to_string(), |c| c.text.clone()),
-//                         albumArtist: tag.album_artist().unwrap_or("").to_string(),
-//                         composer: tag.composer().unwrap_or("").to_string(),
-//                         discno: tag.disc().unwrap_or(0),
-//                         imageSrc: "".to_string(), // Handling images can be added as needed
-//                         percentage: 0.0, // Placeholder
-//                         status: "unknown".to_string(), // Placeholder
-//                     };
-//                     songs.push(song);
-//                 }
-//             }
-//         }
-//     }
-
-//     Ok(songs)
-// }
+pub fn is_mp3_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("mp3"))
+        .unwrap_or(false)
+}
 
 pub fn get_details_for_song(
     complete_path: &str,
     id: u32,
     file_name: &str,
 ) -> Result<types::EditViewSongMetadata, String> {
-    //(directory: &str)
-    // let path_str = "G:/Music/Editing Completed Songs (Ready for download)/[Cleaned Up] John Mayer - Everything You'll Ever Be (Hotel Bathroom Song) (2023_05_23 13_29_06 UTC).mp3";
-    let path = Path::new(&complete_path);
+    let path = Path::new(complete_path);
 
     if !path.is_file() {
-        panic!("ERROR: Path is not a file!");
+        return Err(format!("Path is not a file: {}", complete_path));
+    }
+
+    if !is_mp3_file(path) {
+        return Err(format!("Not an MP3 file: {}", complete_path));
     }
 
     let tagged_file = Probe::open(path)
-        .expect("ERROR: Bad path provided!")
+        .map_err(|e| format!("Bad path provided ({}): {}", complete_path, e))?
         .read()
-        .expect("ERROR: Failed to read file!");
+        .map_err(|e| format!("Failed to read file ({}): {}", complete_path, e))?;
 
     info!("Number of Tags: {}", tagged_file.tags().len());
 
-    let tag = match tagged_file.primary_tag() {
-        Some(primary_tag) => primary_tag,
-        // If the "primary" tag doesn't exist, we just grab the
-        // first tag we can find. Realistically, a tag reader would likely
-        // iterate through the tags to find a suitable one.
-        None => tagged_file.first_tag().expect("ERROR: No tags found!"),
+    let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+        Some(tag) => tag,
+        None => {
+            // Playable MP3 with no tags — still include with filename fallbacks
+            return Ok(EditViewSongMetadata {
+                id: id.to_string(),
+                file: file_name.to_string(),
+                path: complete_path.to_string(),
+                artist: "None".to_string(),
+                title: Path::new(file_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(file_name)
+                    .to_string(),
+                album: "None".to_string(),
+                year: 0,
+                track: 0,
+                genre: "None".to_string(),
+                comments: "None".to_string(),
+                albumArtist: "None".to_string(),
+                composer: "None".to_string(),
+                discno: 0,
+                imageSrc: String::new(),
+                percentage: 0,
+                status: "UNSAVED".to_string(),
+                sessionName: "None".to_string(),
+            });
+        }
     };
 
     let image_data = tag.pictures().get(0);
@@ -95,11 +97,7 @@ pub fn get_details_for_song(
         title: tag.title().as_deref().unwrap_or("None").to_string(),
         album: tag.album().as_deref().unwrap_or("None").to_string(),
         year: tag.year().unwrap_or(0),
-        track: tag
-            .get_string(&ItemKey::TrackNumber)
-            .unwrap_or("0")
-            .parse::<u32>()
-            .unwrap(),
+        track: parse_u32_field(tag.get_string(&ItemKey::TrackNumber), 0),
         genre: tag
             .get_string(&ItemKey::Genre)
             .unwrap_or("None")
@@ -116,14 +114,14 @@ pub fn get_details_for_song(
             .get_string(&ItemKey::Composer)
             .unwrap_or("None")
             .to_string(),
-        discno: tag
-            .get_string(&ItemKey::DiscNumber)
-            .unwrap_or("0")
-            .parse::<u32>()
-            .unwrap(),
+        discno: parse_u32_field(tag.get_string(&ItemKey::DiscNumber), 0),
         imageSrc: base64_image_string,
         percentage: 0,
-        status: if session == "None" { "UNSAVED" } else { "EDIT" }.to_string(),
+        status: if session == "None" {
+            "UNSAVED".to_string()
+        } else {
+            "EDIT".to_string()
+        },
         sessionName: session,
     };
 
@@ -132,24 +130,23 @@ pub fn get_details_for_song(
 
 pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
     let path = Path::new(&song.path);
-    let new_filename = format!("{} - {}.mp3", &song.artist, &song.title);
 
     if !path.is_file() {
         return Err("ERROR: Path is not a file!".to_string());
     }
 
     let mut tagged_file = Probe::open(path)
-        .expect("ERROR: Bad path provided!")
+        .map_err(|e| format!("ERROR: Bad path provided!: {}", e))?
         .read()
-        .expect("ERROR: Failed to read file!");
+        .map_err(|e| format!("ERROR: Failed to read file!: {}", e))?;
 
-    let mut tag = match tagged_file.primary_tag_mut() {
-        Some(primary_tag) => primary_tag,
-        None => tagged_file.first_tag_mut().expect("ERROR: No tags found!"),
+    let tag = if let Some(tag) = tagged_file.primary_tag_mut() {
+        tag
+    } else if let Some(tag) = tagged_file.first_tag_mut() {
+        tag
+    } else {
+        return Err("ERROR: No tags found!".to_string());
     };
-
-    // tagged_file.clear();
-    // let mut tag = Tag::new(TagType::Id3v2);
 
     tag.set_artist(song.artist);
     tag.set_title(song.title);
@@ -164,7 +161,6 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
     tag.insert_text(ItemKey::DiscNumber, song.discno.to_string());
     tag.insert_text(ItemKey::Description, song.sessionName);
 
-    // Handle image data if present
     if !song.imageSrc.is_empty() {
         debug!("[ENTER][UpdateImage] - updating Image");
         let image_data: Vec<u8> = base64::decode(song.imageSrc).map_err(|e| e.to_string())?;
@@ -179,23 +175,20 @@ pub fn edit_song_metadata(song: EditViewSongMetadata) -> Result<(), String> {
 
     let mut val = match tag.save_to_path(&song.path, WriteOptions::default()) {
         Ok(_) => Ok(()),
-        Err(error_value) => Err(error_value.to_string())
+        Err(error_value) => Err(error_value.to_string()),
     };
 
     if val.is_err() {
         return val;
     }
 
-    let mut tag = id3::Tag::read_from_path(&song.path).unwrap();
+    let tag = id3::Tag::read_from_path(&song.path)
+        .map_err(|e| format!("Failed to re-read ID3 tag: {}", e))?;
 
     val = match tag.write_to_path(&song.path, id3::Version::Id3v24) {
         Ok(_) => Ok(()),
-        Err(error_value) => Err(error_value.to_string())
+        Err(error_value) => Err(error_value.to_string()),
     };
-
-    // Rename the file
-    // let new_path = path.with_file_name(new_filename);
-    // fs::rename(path, &new_path).map_err(|e| e.to_string())?;
 
     val
 }
