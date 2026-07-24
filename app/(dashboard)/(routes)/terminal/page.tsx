@@ -28,8 +28,16 @@ import {
   ScrapeResult,
 } from "@/types";
 import { Button } from "@/components/ui/button";
+import {
+  STORE_FILE,
+  STORE_KEYS,
+  TAURI_COMMANDS,
+  TAURI_EVENTS,
+  ROUTES,
+  TABLE,
+} from "@/constants";
 
-const store = new Store(".settings.dat");
+const store = new Store(STORE_FILE);
 
 const Terminal = () => {
   const [numFiles, setNumFiles, numFilesRef] = useStateRef<number>(0);
@@ -77,7 +85,7 @@ const Terminal = () => {
     async function listenProgressDetails() {
       console.log("From progress: ", ref.current);
       if (!ref.current) {
-        let unListen1: UnlistenFn = await listen("progress_start", (event) => {
+        let unListen1: UnlistenFn = await listen(TAURI_EVENTS.progressStart, (event) => {
           const progressData: Packet = JSON.parse(
             JSON.stringify(event.payload)
           );
@@ -91,7 +99,7 @@ const Terminal = () => {
     }
 
     async function confirmProgressDetails() {
-      let unListen2: UnlistenFn = await listen("progress_end", (event) => {
+      let unListen2: UnlistenFn = await listen(TAURI_EVENTS.progressEnd, (event) => {
         const progressData: Packet = JSON.parse(JSON.stringify(event.payload));
         hashmap.set(progressData.id, progressData);
         setHashmap(new Map(hashmap));
@@ -101,7 +109,7 @@ const Terminal = () => {
 
     async function listenErrorDetails() {
       if (!ref.current) {
-        let unListen3: UnlistenFn = await listen("error_env", (event) => {
+        let unListen3: UnlistenFn = await listen(TAURI_EVENTS.errorEnv, (event) => {
           const error: Packet = JSON.parse(
             JSON.stringify(event.payload)
           ) as Packet;
@@ -119,7 +127,7 @@ const Terminal = () => {
     }
 
     async function listenScrapeResult() {
-      let unListen4: UnlistenFn = await listen("scrape_result", (event) => {
+      let unListen4: UnlistenFn = await listen(TAURI_EVENTS.scrapeResult, (event) => {
         const resultData: ScrapeResult = JSON.parse(
           JSON.stringify(event.payload)
         );
@@ -140,12 +148,12 @@ const Terminal = () => {
       async function loadData() {
         // store.load();
         await store.load();
-        const data = await store.get("settings");
+        const data = await store.get(STORE_KEYS.settings);
         setSettingsData(data);
       }
       loadData();
 
-      let unListen2: UnlistenFn = await listen("db_init_paths", (event) => {
+      let unListen2: UnlistenFn = await listen(TAURI_EVENTS.dbInitPaths, (event) => {
         setNumFiles(z.number().parse(event.payload));
       });
     }
@@ -155,7 +163,7 @@ const Terminal = () => {
 
   const handleChangeInScrape = useCallback(async () => {
     setStopScrape(true);
-    await invoke("stop_scrape_process");
+    await invoke(TAURI_COMMANDS.stopScrapeProcess);
     goBack(2);
   }, []);
 
@@ -169,7 +177,7 @@ const Terminal = () => {
 
   async function getServerHealth() {
     try {
-      var msg = (await invoke("get_server_health")) as ServerHealth;
+      var msg = (await invoke(TAURI_COMMANDS.getServerHealth)) as ServerHealth;
       if (msg.status == 200) {
         return msg;
       } else {
@@ -186,7 +194,7 @@ const Terminal = () => {
 
   async function getNetworkDetails() {
     try {
-      var msg = (await invoke("get_network_data")) as NetworkDetails;
+      var msg = (await invoke(TAURI_COMMANDS.getNetworkData)) as NetworkDetails;
       console.log(msg);
       return msg;
     } catch (error) {
@@ -272,7 +280,7 @@ const Terminal = () => {
 
   async function startSearch(type: number) {
     setLoading({ state: true, msg: "Loading your Database..." });
-    const val: number = await invoke("initialize_db", { path_var: directory });
+    const val: number = await invoke(TAURI_COMMANDS.initializeDb, { path_var: directory });
     setNumFiles(val);
     setLoading({ state: false, msg: "" });
 
@@ -496,7 +504,7 @@ const Terminal = () => {
 
     if (!ref.current) {
       await sleep(3500);
-      const elapsedTime = await invoke("start_scrape_process", {
+      const elapsedTime = await invoke(TAURI_COMMANDS.startScrapeProcess, {
         pathVar: directory,
       });
       console.log(elapsedTime);
@@ -512,7 +520,9 @@ const Terminal = () => {
       if (results == null) {
         return;
       }
-      router.push(`/edit/editPage?directory=${directory}&totalSongs=${numOfFiles}&pageNo=${1}&pageSize=${10}&session=${results.sessionName}&accuracy=${results.overallAccuracy}`);
+      router.push(
+        `${ROUTES.editPage}?directory=${directory}&totalSongs=${numOfFiles}&pageNo=${1}&pageSize=${TABLE.defaultPageSize}&session=${results.sessionName}&accuracy=${results.overallAccuracy}`
+      );
     } catch (error) {
       console.log(error);
     }

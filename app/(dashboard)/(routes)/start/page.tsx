@@ -22,6 +22,7 @@ import "../../../globals.css"
 import { useRouter } from "next/navigation";
 import { DisplayForm } from "../settings/dev/display-form";
 import { ConfigContext } from "@/components/context/ConfigContext"
+import { ROUTES, TAURI_COMMANDS } from "@/constants"
 
 const Start = () => {
   const [directory, setDirectory] = useState<any>();
@@ -43,8 +44,8 @@ const Start = () => {
     }
 
     setLoading({ state: true, msg: "Loading your Database..." });
-    const val: number = await invoke('initialize_db', { path_var: directory });
-    router.push(`/terminal?directory=${directory}&files=${val}`)
+    const val: number = await invoke(TAURI_COMMANDS.initializeDb, { path_var: directory });
+    router.push(`${ROUTES.terminal}?directory=${directory}&files=${val}`)
   }
 
   async function selectDirectory() {
@@ -82,7 +83,7 @@ const Start = () => {
   }
 
   async function checkIfDirectoryContainsMusic(selectedPath: any) {
-    var msg = await invoke('check_directory', { var: selectedPath })
+    var msg = await invoke(TAURI_COMMANDS.checkDirectory, { var: selectedPath })
       .then((message) => {
         console.log(msg)
         return message;
