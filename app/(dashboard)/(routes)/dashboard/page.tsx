@@ -7,34 +7,35 @@ import { cn } from "@/lib/utils";
 import { tools } from "@/constants";
 
 export default function HomePage() {
+  const router = useRouter();
 
-const router = useRouter();
-
-return (
-  <div>
-    <div className="my-8 space-y-4">
-      <h2 className="text-2xl md:text-4xl font-bold text-center">
-        Welcome to Automated Mp3 Tag Editor
-      </h2>
-      <p className="text-muted-foreground font-light text-sm md:text-lg text-center">
-        Explore the power of AI-Driven Music Metadata Aggregation
-      </p>
-    </div>
-    <div className="px-4 md:px-20 lg:px-32 space-y-4">
-      {tools.map((tool) => (
-        <Card onClick={() => router.push(tool.href)} key={tool.href} className="p-4 border-black/5 flex items-center justify-between hover:shadow-md transition cursor-pointer">
-          <div className="flex items-center gap-x-4">
-            <div className={cn("p-2 w-fit rounded-md", tool.bgColor)}>
-              <tool.icon className={cn("w-8 h-8", tool.color)} />
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="my-8 space-y-4">
+        <h2 className="text-center text-2xl font-bold md:text-4xl">
+          Welcome to Automated Mp3 Tag Editor
+        </h2>
+        <p className="text-center text-sm font-light text-muted-foreground md:text-lg">
+          Explore the power of AI-Driven Music Metadata Aggregation
+        </p>
+      </div>
+      <div className="space-y-4 px-4 pb-8 md:px-20 lg:px-32">
+        {tools.map((tool) => (
+          <Card
+            onClick={() => router.push(tool.href)}
+            key={tool.href}
+            className="flex cursor-pointer items-center justify-between border-black/5 p-4 transition hover:shadow-md"
+          >
+            <div className="flex items-center gap-x-4">
+              <div className={cn("w-fit rounded-md p-2", tool.bgColor)}>
+                <tool.icon className={cn("h-8 w-8", tool.color)} />
+              </div>
+              <div className="font-semibold">{tool.label}</div>
             </div>
-            <div className="font-semibold">
-              {tool.label}
-            </div>
-          </div>
-          <ArrowRight className="w-5 h-5" />
-        </Card>
-      ))}
+            <ArrowRight className="h-5 w-5" />
+          </Card>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
 }

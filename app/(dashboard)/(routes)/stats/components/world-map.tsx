@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
 import {
   ComposableMap,
   Geographies,
@@ -10,6 +9,7 @@ import {
 } from "react-simple-maps";
 import type { CountryBucket } from "../lib/types";
 import { cn } from "@/lib/utils";
+import { useHtmlDark } from "@/lib/use-html-dark";
 import {
   GEO,
   STATS_MAP_PALETTE_DARK,
@@ -48,9 +48,8 @@ export function WorldMap({
   pending = 0,
   unknownArtists = 0,
 }: WorldMapProps) {
-  const { resolvedTheme } = useTheme();
-  const palette =
-    resolvedTheme === "dark" ? STATS_MAP_PALETTE_DARK : STATS_MAP_PALETTE_LIGHT;
+  const { mounted, isDark } = useHtmlDark();
+  const palette = isDark ? STATS_MAP_PALETTE_DARK : STATS_MAP_PALETTE_LIGHT;
 
   const byIso = useMemo(() => {
     const m = new Map<string, CountryBucket>();
@@ -124,96 +123,102 @@ export function WorldMap({
 
       <div
         className="relative w-full overflow-hidden rounded-lg border"
-        style={{ backgroundColor: palette.ocean }}
+        style={{
+          backgroundColor: mounted ? palette.ocean : "transparent",
+        }}
       >
-        <ComposableMap
-          projection="geoEqualEarth"
-          projectionConfig={{ scale: 185, center: [8, 12] }}
-          width={1100}
-          height={460}
-          className="h-auto w-full"
-          style={{ width: "100%", height: "auto", display: "block" }}
-        >
-          <Geographies geography={COUNTRIES_TOPOJSON}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const rawId = String(geo.id ?? "");
-                const bucket =
-                  byNumeric.get(rawId) ??
-                  byNumeric.get(String(Number(rawId))) ??
-                  undefined;
-                const iso = bucket?.iso2 ?? rawId;
-                const isSelected =
-                  !!selectedIso &&
-                  iso.toUpperCase() === selectedIso.toUpperCase();
+        {mounted ? (
+          <ComposableMap
+            projection="geoEqualEarth"
+            projectionConfig={{ scale: 185, center: [8, 12] }}
+            width={1100}
+            height={460}
+            className="h-auto w-full"
+            style={{ width: "100%", height: "auto", display: "block" }}
+          >
+            <Geographies geography={COUNTRIES_TOPOJSON}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const rawId = String(geo.id ?? "");
+                  const bucket =
+                    byNumeric.get(rawId) ??
+                    byNumeric.get(String(Number(rawId))) ??
+                    undefined;
+                  const iso = bucket?.iso2 ?? rawId;
+                  const isSelected =
+                    !!selectedIso &&
+                    iso.toUpperCase() === selectedIso.toUpperCase();
 
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={(evt) => {
-                      if (!bucket) return;
-                      const parent = evt.currentTarget.ownerSVGElement
-                        ?.parentElement as HTMLElement | null;
-                      if (!parent) return;
-                      const box = parent.getBoundingClientRect();
-                      setTooltip({
-                        x: evt.clientX - box.left,
-                        y: evt.clientY - box.top,
-                        bucket,
-                      });
-                    }}
-                    onMouseMove={(evt) => {
-                      if (!bucket) return;
-                      const parent = evt.currentTarget.ownerSVGElement
-                        ?.parentElement as HTMLElement | null;
-                      if (!parent) return;
-                      const box = parent.getBoundingClientRect();
-                      setTooltip({
-                        x: evt.clientX - box.left,
-                        y: evt.clientY - box.top,
-                        bucket,
-                      });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                    onClick={() => {
-                      if (bucket) setSelectedIso(bucket.iso2);
-                    }}
-                    style={{
-                      default: {
-                        fill: fillForCount(
-                          bucket?.trackCount,
-                          maxCount,
-                          isSelected,
-                          palette
-                        ),
-                        stroke: palette.stroke,
-                        strokeWidth: 0.45,
-                        outline: "none",
-                        cursor: bucket ? "pointer" : "default",
-                      },
-                      hover: {
-                        fill: bucket
-                          ? isSelected
-                            ? palette.selectedHover
-                            : palette.heatHover
-                          : palette.hoverEmpty,
-                        stroke: palette.stroke,
-                        strokeWidth: 0.65,
-                        outline: "none",
-                        cursor: bucket ? "pointer" : "default",
-                      },
-                      pressed: {
-                        fill: palette.selected,
-                        outline: "none",
-                      },
-                    }}
-                  />
-                );
-              })
-            }
-          </Geographies>
-        </ComposableMap>
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={(evt) => {
+                        if (!bucket) return;
+                        const parent = evt.currentTarget.ownerSVGElement
+                          ?.parentElement as HTMLElement | null;
+                        if (!parent) return;
+                        const box = parent.getBoundingClientRect();
+                        setTooltip({
+                          x: evt.clientX - box.left,
+                          y: evt.clientY - box.top,
+                          bucket,
+                        });
+                      }}
+                      onMouseMove={(evt) => {
+                        if (!bucket) return;
+                        const parent = evt.currentTarget.ownerSVGElement
+                          ?.parentElement as HTMLElement | null;
+                        if (!parent) return;
+                        const box = parent.getBoundingClientRect();
+                        setTooltip({
+                          x: evt.clientX - box.left,
+                          y: evt.clientY - box.top,
+                          bucket,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                      onClick={() => {
+                        if (bucket) setSelectedIso(bucket.iso2);
+                      }}
+                      style={{
+                        default: {
+                          fill: fillForCount(
+                            bucket?.trackCount,
+                            maxCount,
+                            isSelected,
+                            palette
+                          ),
+                          stroke: palette.stroke,
+                          strokeWidth: 0.45,
+                          outline: "none",
+                          cursor: bucket ? "pointer" : "default",
+                        },
+                        hover: {
+                          fill: bucket
+                            ? isSelected
+                              ? palette.selectedHover
+                              : palette.heatHover
+                            : palette.hoverEmpty,
+                          stroke: palette.stroke,
+                          strokeWidth: 0.65,
+                          outline: "none",
+                          cursor: bucket ? "pointer" : "default",
+                        },
+                        pressed: {
+                          fill: palette.selected,
+                          outline: "none",
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          </ComposableMap>
+        ) : (
+          <div className="aspect-[1100/460] w-full bg-muted" />
+        )}
 
         {tooltip ? (
           <div
@@ -225,9 +230,7 @@ export function WorldMap({
               top: Math.max(8, tooltip.y - 12),
             }}
           >
-            <p className="text-sm font-semibold">
-              {tooltip.bucket.name}
-            </p>
+            <p className="text-sm font-semibold">{tooltip.bucket.name}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {tooltip.bucket.artistCount} artist
               {tooltip.bucket.artistCount === 1 ? "" : "s"}

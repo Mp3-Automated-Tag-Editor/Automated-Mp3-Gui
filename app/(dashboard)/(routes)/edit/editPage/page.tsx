@@ -443,11 +443,11 @@ const EditPage = () => {
   }
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {loading && songs.length === 0 ? (
         <Loading msg="Loading your Music Database..." />
       ) : (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Heading
             title="Edit Music Files"
             description={`Library: ${libraryPath}${
@@ -457,9 +457,9 @@ const EditPage = () => {
             }`}
             icon={Pencil}
             iconColor="text-orange-700"
-            otherProps="mb-4"
+            otherProps="mb-4 shrink-0"
           />
-          <div className="px-4 lg:px-8 h-full">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 lg:px-8">
             <DataTable
               directory={libraryPath}
               functions={{ updateSong, dismissPending, syncSongLocal }}

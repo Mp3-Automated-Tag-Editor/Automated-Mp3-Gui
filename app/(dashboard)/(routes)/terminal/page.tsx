@@ -537,15 +537,16 @@ const Terminal = () => {
         FOCUS_BARCODE: handleChangeInScrape,
       }}
     >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Heading
         title={"Searching..."}
         description={"Getting your music ready for you!"}
         icon={Play}
         iconColor="text-violet-500"
-        otherProps="mb-8"
+        otherProps="mb-8 shrink-0"
         // bgColor="bg-violet-500/10"
       />
-      <div ref={consoleRef} id="section-1" className="px-4 mt-10 lg:px-8">
+      <div ref={consoleRef} id="section-1" className="mt-10 min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
         <div
           className="rounded-lg 
                 border 
@@ -657,6 +658,7 @@ const Terminal = () => {
               scrapeResult ? <center><Button onClick={goToEditScreen} style={{marginTop: "15px"}} variant="outline2">Proceed to Edit Page</Button></center> : null
             }
         </div>
+      </div>
       </div>
     </GlobalHotKeys>
   );

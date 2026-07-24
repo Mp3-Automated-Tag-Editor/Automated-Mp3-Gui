@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
@@ -16,12 +17,15 @@ import {
 import { usePlayer } from "@/components/context/PlayerContext";
 import type { AlbumGroup } from "@/components/context/PlayerContext/types";
 import { useToast } from "@/components/ui/use-toast";
+import { CreatePlaylistDialog } from "./create-playlist-dialog";
 
 interface AlbumArtworkProps extends React.HTMLAttributes<HTMLDivElement> {
   album: AlbumGroup;
   aspectRatio?: "portrait" | "square";
   width?: number;
   height?: number;
+  /** Left-click opens album detail (required — play via context menu / detail) */
+  onOpenAlbum: () => void;
 }
 
 export function AlbumArtwork({
@@ -30,6 +34,7 @@ export function AlbumArtwork({
   width,
   height,
   className,
+  onOpenAlbum,
   ...props
 }: AlbumArtworkProps) {
   const {
@@ -45,6 +50,7 @@ export function AlbumArtwork({
   } = usePlayer();
   const { toast } = useToast();
   const seed = album.tracks[0];
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
 
   return (
     <div className={cn("space-y-3", className)} {...props}>
@@ -53,7 +59,7 @@ export function AlbumArtwork({
           <button
             type="button"
             className="overflow-hidden rounded-md text-left"
-            onClick={() => playAlbum(album.tracks)}
+            onClick={onOpenAlbum}
           >
             <Image
               src={album.cover}
@@ -84,17 +90,7 @@ export function AlbumArtwork({
           <ContextMenuSub>
             <ContextMenuSubTrigger>Add to Playlist</ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48">
-              <ContextMenuItem
-                onClick={() => {
-                  const name = window.prompt("New playlist name", album.name);
-                  if (!name?.trim()) return;
-                  createPlaylist(
-                    name.trim(),
-                    album.tracks.map((t) => t.path)
-                  );
-                  toast({ title: "Playlist created", description: name.trim() });
-                }}
-              >
+              <ContextMenuItem onClick={() => setPlaylistDialogOpen(true)}>
                 <PlusCircledIcon className="mr-2 h-4 w-4" />
                 New Playlist
               </ContextMenuItem>
@@ -119,11 +115,14 @@ export function AlbumArtwork({
             </ContextMenuSubContent>
           </ContextMenuSub>
           <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => playAlbum(album.tracks)}>
+            Play
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => playNextMany(album.tracks)}>
             Play Next
           </ContextMenuItem>
           <ContextMenuItem onClick={() => playLaterMany(album.tracks)}>
-            Play Later
+            Add to Queue
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => {
@@ -161,10 +160,29 @@ export function AlbumArtwork({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      <div className="space-y-1 text-sm">
-        <h3 className="font-medium leading-none">{album.name}</h3>
+      <button
+        type="button"
+        className="space-y-1 text-left text-sm"
+        onClick={onOpenAlbum}
+      >
+        <h3 className="font-medium leading-none hover:underline">
+          {album.name}
+        </h3>
         <p className="text-xs text-muted-foreground">{album.artist}</p>
-      </div>
+      </button>
+
+      <CreatePlaylistDialog
+        open={playlistDialogOpen}
+        onOpenChange={setPlaylistDialogOpen}
+        defaultName={album.name}
+        onConfirm={(name) => {
+          createPlaylist(
+            name,
+            album.tracks.map((t) => t.path)
+          );
+          toast({ title: "Playlist created", description: name });
+        }}
+      />
     </div>
   );
 }

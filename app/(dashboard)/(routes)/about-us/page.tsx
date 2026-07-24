@@ -1,7 +1,6 @@
 "use client";
 
 import { Download, Github, Info, ScrollText, Star } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TEAM } from "@/constants";
@@ -9,54 +8,41 @@ import { Heading } from "@/components/heading";
 
 const AboutUs = () => {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Heading
         title="About Us"
         description="Meet the team behind Automated Mp3 Tag Editor"
         icon={Info}
         iconColor="text-muted-foreground"
-        otherProps="mb-8"
+        otherProps="mb-4 shrink-0"
       />
 
-      <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-4 pb-8 lg:px-8">
-        {/* Intro: photo + story */}
-        <section className="grid items-start gap-6 lg:grid-cols-[minmax(0,280px)_1fr] lg:gap-8">
-          <div className="relative mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-xl border bg-muted shadow-sm lg:mx-0">
-            <Image
-              src="/about-us.JPG"
-              alt="JRS Studios team"
-              fill
-              unoptimized
-              className="object-cover"
-              sizes="280px"
-              priority
-            />
-          </div>
-
-          <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              JRS Studios
+      <div className="relative min-h-0 flex-1">
+        <div className="scroll-edge-blur" aria-hidden />
+        <div className="h-full min-h-0 space-y-8 overflow-y-auto px-4 pb-8 pt-4 lg:px-8">
+        {/* Intro */}
+        <section className="rounded-xl border bg-card p-5 shadow-sm sm:p-6 lg:p-8">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            JRS Studios
+          </p>
+          <h3 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
+            Automated Mp3 Tag Editor
+          </h3>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p>
+              Thanks for using the Automated Mp3 Tag Editor. This project began
+              as a simple Python CLI tool for a Software Engineering course.
             </p>
-            <h3 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
-              Automated Mp3 Tag Editor
-            </h3>
-            <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              <p>
-                Thanks for using the Automated Mp3 Tag Editor. This project
-                began as a simple Python CLI tool for a Software Engineering
-                course.
-              </p>
-              <p>
-                Three years later, it has grown into a full-stack Rust desktop
-                app with an ML-powered backend, built to handle offline music
-                libraries. We have more planned—including a mobile companion for
-                the music identified here.
-              </p>
-              <p>
-                Thank you for using the app. Feel free to contribute, suggest
-                ideas, or report bugs. Keep scraping!
-              </p>
-            </div>
+            <p>
+              Three years later, it has grown into a full-stack Rust desktop app
+              with an ML-powered backend, built to handle offline music
+              libraries. We have more planned—including a mobile companion for
+              the music identified here.
+            </p>
+            <p>
+              Thank you for using the app. Feel free to contribute, suggest
+              ideas, or report bugs. Keep scraping!
+            </p>
           </div>
         </section>
 
@@ -149,6 +135,7 @@ const AboutUs = () => {
             </p>
           </Link>
         </section>
+        </div>
       </div>
     </div>
   );

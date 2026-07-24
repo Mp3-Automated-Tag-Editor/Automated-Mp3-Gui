@@ -281,8 +281,8 @@ export function DataTableRowActions<TData>({
         <SheetContent
           className={
             hasPending
-              ? "overflow-y-auto p-4 min-w-[780px]"
-              : "overflow-y-auto p-4 min-w-[400px]"
+              ? "w-full overflow-y-auto p-4 sm:max-w-[min(780px,100vw)]"
+              : "w-full overflow-y-auto p-4 sm:max-w-[min(400px,100vw)]"
           }
         >
           <Tabs defaultValue="edit">

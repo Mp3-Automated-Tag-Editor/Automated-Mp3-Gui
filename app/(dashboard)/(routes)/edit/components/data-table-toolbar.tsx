@@ -111,7 +111,7 @@ export function DataTableToolbar<TData>({
       {/* Progress — after Genre filters */}
       <div
         className={cn(
-          "flex min-w-[160px] max-w-[280px] flex-1 items-center gap-2",
+          "flex min-w-0 max-w-[280px] flex-1 basis-[140px] items-center gap-2",
           !scrapeProgress.running && scrapeProgress.total === 0 && "opacity-40"
         )}
       >

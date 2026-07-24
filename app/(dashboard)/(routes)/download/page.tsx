@@ -191,15 +191,15 @@ const DownloadMusic = () => {
 
   if (!libraryPath) {
     return (
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Heading
           title="Download"
           description="Set a library folder first — downloads land there for Edit and Music."
           icon={Download}
           iconColor="text-pink-700"
-          otherProps="mb-8"
+          otherProps="mb-8 shrink-0"
         />
-        <div className="px-4 lg:px-8">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
           <LibraryGate />
         </div>
       </div>
@@ -207,16 +207,16 @@ const DownloadMusic = () => {
   }
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Heading
         title="Download"
         description="Spotify via spotDL · YouTube via yt-dlp · files go to your library folder"
         icon={Download}
         iconColor="text-pink-700"
-        otherProps="mb-4"
+        otherProps="mb-4 shrink-0"
       />
 
-      <div className="px-4 lg:px-8">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
         <div className={cn("flex gap-3", logsOpen && "items-stretch")}>
           <div className="min-w-0 flex-1 space-y-4 rounded-lg border p-4 md:p-6">
             <div className="space-y-1">

@@ -59,7 +59,7 @@ export const columns: ColumnDef<Song>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="File Name" />
     ),
-    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("file")}</div>,
+    cell: ({ row }) => <div className="max-w-[200px] min-w-0 truncate">{row.getValue("file")}</div>,
 
     enableSorting: false,
     enableHiding: true,
@@ -96,7 +96,7 @@ export const columns: ColumnDef<Song>[] = [
     cell: ({ row }) => {
       return (
         <div className="flex space-x-2">
-          <span className="max-w-[500px] min-w-[250px] truncate">
+          <span className="max-w-[280px] min-w-0 truncate">
             {row.getValue("title")}
           </span>
         </div>
@@ -117,8 +117,8 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[250px] truncate items-center">
-          <span>{artist}</span>
+        <div className="flex max-w-[160px] min-w-0 truncate items-center">
+          <span className="truncate">{artist}</span>
         </div>
       )
     },
@@ -140,8 +140,8 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[250px] truncate items-center">
-          <span>{album}</span>
+        <div className="flex max-w-[160px] min-w-0 truncate items-center">
+          <span className="truncate">{album}</span>
         </div>
       )
     },
@@ -155,7 +155,7 @@ export const columns: ColumnDef<Song>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Path" />
     ),
-    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("path")}</div>,
+    cell: ({ row }) => <div className="max-w-[200px] min-w-0 truncate">{row.getValue("path")}</div>,
 
     enableSorting: false,
     enableHiding: true,
@@ -265,11 +265,11 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[150px] items-center">
+        <div className="flex w-[120px] min-w-0 items-center">
           {status.icon && (
-            <status.icon className={`mr-2 h-4 w-4 text-muted-foreground text-${status.color}-500`}/>
+            <status.icon className={`mr-2 h-4 w-4 shrink-0 text-muted-foreground text-${status.color}-500`}/>
           )}
-          <span>{status.label}</span>
+          <span className="truncate">{status.label}</span>
         </div>
       )
     },

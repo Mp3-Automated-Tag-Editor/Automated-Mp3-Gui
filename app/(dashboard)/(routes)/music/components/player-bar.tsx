@@ -15,7 +15,6 @@ import {
   Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { usePlayer } from "@/components/context/PlayerContext";
 import {
   displayArtist,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { PlayerSeekBar, PlayerVolumeBar } from "./player-slider";
 
 type PlayerBarProps = {
   onOpenPlayer?: () => void;
@@ -156,13 +156,11 @@ export function PlayerBar({ onOpenPlayer }: PlayerBarProps) {
             <span className="w-10 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
               {formatTime(position)}
             </span>
-            <Slider
-              value={[Number.isFinite(position) ? position : 0]}
+            <PlayerSeekBar
+              value={Number.isFinite(position) ? position : 0}
               max={duration > 0 ? duration : 100}
-              step={0.1}
               disabled={!currentTrack}
-              onValueChange={(v) => seek(v[0] ?? 0)}
-              className="min-w-0 flex-1"
+              onSeek={seek}
             />
             <span className="w-10 shrink-0 text-[10px] tabular-nums text-muted-foreground">
               {formatTime(duration)}
@@ -198,7 +196,7 @@ export function PlayerBar({ onOpenPlayer }: PlayerBarProps) {
             </PopoverTrigger>
             <PopoverContent
               align="end"
-              className="w-[min(20rem,calc(100vw-2rem))] p-0"
+              className="w-[min(20rem,calc(100%-2rem))] p-0"
             >
               <div className="border-b px-3 py-2 text-sm font-medium">
                 Up Next ({queue.length})
@@ -256,11 +254,9 @@ export function PlayerBar({ onOpenPlayer }: PlayerBarProps) {
               <Volume2 className="h-4 w-4" />
             )}
           </Button>
-          <Slider
-            value={[muted ? 0 : volume]}
-            max={1}
-            step={0.01}
-            onValueChange={(v) => setVolume(v[0] ?? 0)}
+          <PlayerVolumeBar
+            value={muted ? 0 : volume}
+            onVolumeChange={setVolume}
             className="w-20 sm:w-24"
           />
         </div>

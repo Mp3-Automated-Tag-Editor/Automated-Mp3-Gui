@@ -219,16 +219,18 @@ const StatsPage = () => {
   const dominantGenre = genres.find((g) => g.name !== "Other") ?? genres[0];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Heading
         title="Statistics"
         description="Your Music Stats all in one place :)"
         icon={BarChartHorizontalIcon}
         iconColor="text-yellow-700"
-        otherProps="mb-8"
+        otherProps="mb-4 shrink-0"
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
+      <div className="relative min-h-0 flex-1">
+        <div className="scroll-edge-blur" aria-hidden />
+        <div className="h-full min-h-0 space-y-8 overflow-y-auto px-4 pb-8 pt-4 lg:px-8">
         {isLoading || (statsLoading && tracks.length > 0 && summary.songs === 0) ? (
           <p className="py-12 text-sm text-muted-foreground">
             Loading library…
@@ -374,6 +376,7 @@ const StatsPage = () => {
             </section>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

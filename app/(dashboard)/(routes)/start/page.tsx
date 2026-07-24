@@ -93,25 +93,24 @@ const Start = () => {
   }
 
   return (
-    <div>
-      {loading.state ? <Loading msg={loading.msg} /> :
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {loading.state ? (
+        <Loading msg={loading.msg} />
+      ) : (
         <>
           <Heading
             title="Start Search"
             description="Our most advanced Vector based AI-indexing model for music metadata."
             icon={Play}
             iconColor="text-violet-500"
-            otherProps="mb-8"
-          // bgColor="bg-violet-500/10"
+            otherProps="mb-8 shrink-0"
           />
 
-
-          <div className="px-4 lg:px-8">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
             <div>
               {error === true ? (
                 <>
                   <Dialog msg={errorDetails.data} title={errorDetails.title} variant="destructive" type={true} />
-                  {/* <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} />  goBackFunc={goBack} retryFunc={retry} /> */}
                 </>
               ) : (
                 directory === "" || directory === undefined || directory === null ? null : <Dialog msg={directory} title="Selected Directory" variant="none" type={false} />
@@ -151,7 +150,7 @@ const Start = () => {
                         Developer Settings
                       </Button>
                     </SheetTrigger>
-                    <SheetContent className="overflow-y-auto p-4 min-w-[500px]">
+                    <SheetContent className="w-full overflow-y-auto p-4 sm:max-w-[min(500px,100vw)]">
                       <SheetHeader>
                         <SheetTitle>Edit Developer Settings</SheetTitle>
                         <SheetDescription>
@@ -162,9 +161,6 @@ const Start = () => {
                         <DisplayForm />
                       </div>
                       <SheetFooter>
-                        {/* <SheetClose asChild>
-                          <Button type="submit">Save changes</Button>
-                        </SheetClose> */}
                       </SheetFooter>
                     </SheetContent>
                   </Sheet>
@@ -179,8 +175,8 @@ const Start = () => {
             </div>
           </div>
         </>
-      }
-    </div >
+      )}
+    </div>
   );
 }
 

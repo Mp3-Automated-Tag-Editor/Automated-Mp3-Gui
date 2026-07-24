@@ -23,15 +23,15 @@ const EditHub = () => {
 
   if (!libraryPath) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Heading
           title="Edit Music Files"
           description="Set a library folder to start editing tags"
           icon={Pencil}
           iconColor="text-orange-700"
-          otherProps="mb-8"
+          otherProps="mb-8 shrink-0"
         />
-        <div className="px-4 lg:px-8">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 lg:px-8">
           <LibraryGate
             onReady={() => {
               const qs =

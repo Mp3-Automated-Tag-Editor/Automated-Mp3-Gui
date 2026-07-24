@@ -132,20 +132,27 @@ export function DataTable({
   };
 
   return (
-    <div className={cn("flex gap-3", logsOpen && "items-stretch")}>
-      <div className="min-w-0 flex-1 space-y-4">
-        <DataTableToolbar
-          table={table}
-          directory={directory}
-          scrapeProgress={scrapeProgress}
-          logsOpen={logsOpen}
-          onToggleLogs={onToggleLogs}
-          onStartScrape={handleStart}
-          onStopScrape={onStopScrape}
-          scrapeMode={scrapeMode}
-          onScrapeModeChange={onScrapeModeChange}
-        />
-        <div className="relative overflow-auto rounded-md border lg:h-[66vh] xl:h-[76vh]">
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 gap-3",
+        logsOpen && "items-stretch"
+      )}
+    >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+        <div className="shrink-0">
+          <DataTableToolbar
+            table={table}
+            directory={directory}
+            scrapeProgress={scrapeProgress}
+            logsOpen={logsOpen}
+            onToggleLogs={onToggleLogs}
+            onStartScrape={handleStart}
+            onStopScrape={onStopScrape}
+            scrapeMode={scrapeMode}
+            onScrapeModeChange={onScrapeModeChange}
+          />
+        </div>
+        <div className="relative min-h-0 flex-1 overflow-auto rounded-md border">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-background">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -239,19 +246,21 @@ export function DataTable({
             </TableBody>
           </Table>
         </div>
-        <DataTablePagination
-          table={table}
-          totalSongs={totalSongs}
-          overallAccuracy=""
-        />
+        <div className="shrink-0">
+          <DataTablePagination
+            table={table}
+            totalSongs={totalSongs}
+            overallAccuracy=""
+          />
+        </div>
       </div>
 
       {logsOpen ? (
-        <aside className="flex w-72 shrink-0 flex-col rounded-md border bg-card lg:h-[66vh] xl:h-[76vh]">
-          <div className="border-b px-3 py-2 text-sm font-medium">
+        <aside className="flex w-72 shrink-0 flex-col rounded-md border bg-card">
+          <div className="shrink-0 border-b px-3 py-2 text-sm font-medium">
             Scrape logs
           </div>
-          <ScrollArea className="flex-1 p-3">
+          <ScrollArea className="min-h-0 flex-1 p-3">
             {logs.length === 0 ? (
               <p className="text-xs text-muted-foreground">No log lines yet.</p>
             ) : (
