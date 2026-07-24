@@ -17,10 +17,10 @@ tauri-build = { version = "1.5.1", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.5.4", features = [ "window-all", "notification-all", "path-all", "fs-all", "shell-all", "dialog-all", "process-command-api"] }
+tauri = { version = "1.5.4", features = [ "protocol-asset", "window-all", "notification-all", "path-all", "fs-all", "shell-all", "dialog-all", "process-command-api"] }
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 tokio = { version = "1.33.0", features = ["full"] }
-reqwest = { version="0.11", features = ["blocking"] } 
+reqwest = { version="0.11", features = ["blocking", "json"] } 
 anyhow = "1"
 dirs = "5.0.1"
 dotenv = "0.15.0"
@@ -29,6 +29,7 @@ r2d2 = "0.8.0"
 r2d2_sqlite = "0.21.0"
 audiotags = "0.4.1"
 id3 = "1.9.0"
+image = { version = "0.24", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
 env_logger = "0.11.3"
 log = "0.4.21"
 lofty = "0.20.1"
@@ -37,6 +38,19 @@ chrono = "0.4"
 lazy_static = "1.4"
 rand = "0.8"
 dotenvy = "0.15"
+encoding_rs = "0.8"
+walkdir = "2"
+url = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_UI_Controls",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

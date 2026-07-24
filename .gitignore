@@ -38,6 +38,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# download sidecars (yt-dlp / spotdl)
+/bin/*.exe
+/bin/*-pc-windows-msvc
+/bin/*-apple-darwin
+/bin/*-unknown-linux-gnu
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

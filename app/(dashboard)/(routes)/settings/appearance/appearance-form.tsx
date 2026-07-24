@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ChevronDownIcon } from "@radix-ui/react-icons"
+import { useContext, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
@@ -17,8 +18,12 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { useTheme } from "next-themes"
+import { setAppTheme } from "@/lib/theme"
+import { ConfigContext } from "@/components/context/ConfigContext"
+import { CONFIG_KEYS } from "@/constants"
 
 const appearanceFormSchema = z.object({
   theme: z.enum(["light", "dark"], {
@@ -28,31 +33,35 @@ const appearanceFormSchema = z.object({
     invalid_type_error: "Select a font",
     required_error: "Please select a font.",
   }),
+  darkSidebar: z.boolean(),
 })
 
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>
 
-// This can come from your database or API.
-const defaultValues: Partial<AppearanceFormValues> = {
-  theme: "light",
-}
-
 export function AppearanceForm() {
-  const { setTheme } = useTheme();
+  const { setTheme } = useTheme()
+  const { configs, addConfig } = useContext(ConfigContext)
 
   const form = useForm<AppearanceFormValues>({
     resolver: zodResolver(appearanceFormSchema),
-    defaultValues,
+    defaultValues: {
+      theme: "light",
+      darkSidebar: Boolean(configs[CONFIG_KEYS.darkSidebar]),
+    },
   })
 
+  useEffect(() => {
+    form.setValue("darkSidebar", Boolean(configs[CONFIG_KEYS.darkSidebar]))
+  }, [configs, form])
+
   function onSubmit(data: AppearanceFormValues) {
+    addConfig(configs, {
+      key: CONFIG_KEYS.darkSidebar,
+      value: data.darkSidebar,
+    })
     toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
+      title: "Appearance updated",
+      description: "Your appearance preferences have been saved.",
     })
   }
 
@@ -106,7 +115,11 @@ export function AppearanceForm() {
                 <FormItem>
                   <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
                     <FormControl>
-                      <RadioGroupItem value="light" className="sr-only" onClick={() => setTheme("light")}/>
+                      <RadioGroupItem
+                        value="light"
+                        className="sr-only"
+                        onClick={() => setAppTheme(setTheme, "light")}
+                      />
                     </FormControl>
                     <div className="items-center rounded-md border-2 border-muted p-1 hover:border-accent">
                       <div className="space-y-2 rounded-sm bg-[#ecedef] p-2">
@@ -132,7 +145,11 @@ export function AppearanceForm() {
                 <FormItem>
                   <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
                     <FormControl>
-                      <RadioGroupItem value="dark" className="sr-only" onClick={() => setTheme("dark")}/>
+                      <RadioGroupItem
+                        value="dark"
+                        className="sr-only"
+                        onClick={() => setAppTheme(setTheme, "dark")}
+                      />
                     </FormControl>
                     <div className="items-center rounded-md border-2 border-muted bg-popover p-1 hover:bg-accent hover:text-accent-foreground">
                       <div className="space-y-2 rounded-sm bg-slate-950 p-2">
@@ -156,6 +173,34 @@ export function AppearanceForm() {
                   </FormLabel>
                 </FormItem>
               </RadioGroup>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="darkSidebar"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Always dark sidebar</FormLabel>
+                <FormDescription>
+                  Keep the navigation sidebar pure black regardless of light or
+                  dark theme.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked)
+                    addConfig(configs, {
+                      key: CONFIG_KEYS.darkSidebar,
+                      value: checked,
+                    })
+                  }}
+                />
+              </FormControl>
             </FormItem>
           )}
         />

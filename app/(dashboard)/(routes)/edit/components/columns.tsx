@@ -5,11 +5,16 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 
-import { genres, statuses } from "../data/data"
+import { genres, statuses } from "@/constants"
 import { Song } from "../data/schema"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 import { cn } from "@/lib/utils"
+import {
+  COMPLETION_BADGE,
+  INCOMPLETE_PERCENTAGE_MAX,
+  QUERY,
+} from "@/constants"
 
 export const columns: ColumnDef<Song>[] = [
   {
@@ -54,7 +59,7 @@ export const columns: ColumnDef<Song>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="File Name" />
     ),
-    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("file")}</div>,
+    cell: ({ row }) => <div className="max-w-[200px] min-w-0 truncate">{row.getValue("file")}</div>,
 
     enableSorting: false,
     enableHiding: true,
@@ -69,12 +74,18 @@ export const columns: ColumnDef<Song>[] = [
 
       return (
         <div className="flex space-x-2">
-          {<Badge className={cn("border", percentage >= 70 ? "border-green-500" :
-            percentage >= 50 && percentage < 70 ? "border-yellow-500" :
-              percentage >= 30 && percentage < 50 ? 'border-orange-500' :
-                percentage < 30 ? 'border-red-500' : 'border-black')} variant="outline">{percentage}%</Badge>}
+          {<Badge className={cn("border", percentage >= COMPLETION_BADGE.high ? "border-green-500" :
+            percentage >= COMPLETION_BADGE.mid && percentage < COMPLETION_BADGE.high ? "border-yellow-500" :
+              percentage >= COMPLETION_BADGE.low && percentage < COMPLETION_BADGE.mid ? 'border-orange-500' :
+                percentage < COMPLETION_BADGE.low ? 'border-red-500' : 'border-black')} variant="outline">{percentage}%</Badge>}
         </div>
       )
+    },
+    filterFn: (row, id, value) => {
+      if (value === QUERY.incompleteFilter) {
+        return (row.getValue(id) as number) <= INCOMPLETE_PERCENTAGE_MAX
+      }
+      return true
     },
   },
   {
@@ -85,7 +96,7 @@ export const columns: ColumnDef<Song>[] = [
     cell: ({ row }) => {
       return (
         <div className="flex space-x-2">
-          <span className="max-w-[500px] min-w-[250px] truncate">
+          <span className="max-w-[280px] min-w-0 truncate">
             {row.getValue("title")}
           </span>
         </div>
@@ -106,8 +117,8 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[250px] truncate items-center">
-          <span>{artist}</span>
+        <div className="flex max-w-[160px] min-w-0 truncate items-center">
+          <span className="truncate">{artist}</span>
         </div>
       )
     },
@@ -129,8 +140,8 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[250px] truncate items-center">
-          <span>{album}</span>
+        <div className="flex max-w-[160px] min-w-0 truncate items-center">
+          <span className="truncate">{album}</span>
         </div>
       )
     },
@@ -144,7 +155,7 @@ export const columns: ColumnDef<Song>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Path" />
     ),
-    cell: ({ row }) => <div className="max-w-[300px] min-w-[50px] truncate">{row.getValue("path")}</div>,
+    cell: ({ row }) => <div className="max-w-[200px] min-w-0 truncate">{row.getValue("path")}</div>,
 
     enableSorting: false,
     enableHiding: true,
@@ -254,11 +265,11 @@ export const columns: ColumnDef<Song>[] = [
       }
 
       return (
-        <div className="flex w-[150px] items-center">
+        <div className="flex w-[120px] min-w-0 items-center">
           {status.icon && (
-            <status.icon className={`mr-2 h-4 w-4 text-muted-foreground text-${status.color}-500`}/>
+            <status.icon className={`mr-2 h-4 w-4 shrink-0 text-muted-foreground text-${status.color}-500`}/>
           )}
-          <span>{status.label}</span>
+          <span className="truncate">{status.label}</span>
         </div>
       )
     },

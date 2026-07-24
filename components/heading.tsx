@@ -20,18 +20,16 @@ export const Heading = ({
   otherProps
 }: HeadingProps) => {
   return (
-    <>
-      <div className={cn("px-4 lg:px-8 flex items-center gap-x-3", otherProps)}>
-        <div className={cn("p-2 w-fit rounded-md", bgColor)}>
-          <Icon className={cn("w-10 h-10", iconColor)} />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold">{title}</h2>
-          <p className="text-sm text-muted-foreground">
-            {description}
-          </p>
-        </div>
+    <div className={cn("flex items-center gap-x-3 px-4 lg:px-8 pt-4", otherProps)}>
+      <div className={cn("w-fit shrink-0 rounded-md p-2", bgColor)}>
+        <Icon className={cn("h-10 w-10", iconColor)} />
       </div>
-    </>
+      <div className="min-w-0">
+        <h2 className="truncate text-2xl font-bold leading-tight sm:text-3xl">
+          {title}
+        </h2>
+        <p className="truncate text-sm text-muted-foreground">{description}</p>
+      </div>
+    </div>
   );
 };

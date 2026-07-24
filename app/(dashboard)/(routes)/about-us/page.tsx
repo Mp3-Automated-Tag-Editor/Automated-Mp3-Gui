@@ -1,124 +1,144 @@
 "use client";
 
-import { Github, Info, ScrollText } from "lucide-react";
-import { Heading } from "@/components/heading";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
+import { Download, Github, Info, ScrollText, Star } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { TEAM } from "@/constants";
+import { Heading } from "@/components/heading";
 
-const Start = () => {
+const AboutUs = () => {
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Heading
         title="About Us"
-        description="Meet the team behind Automated Mp3 Tag Editor!"
+        description="Meet the team behind Automated Mp3 Tag Editor"
         icon={Info}
-        iconColor="text-grey"
-        otherProps="mb-8"
-      // bgColor="bg-violet-500/10"
+        iconColor="text-muted-foreground"
+        otherProps="mb-4 shrink-0"
       />
-      <div className="px-4 lg:px-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 my-4 px-16">
-          <div className="col-span-2">
-            <Image
-              src={"/about-us.JPG"}
-              width={300}
-              height={300}
-              alt="Picture of the author"
-              className="border border-black"
 
-            />
+      <div className="relative min-h-0 flex-1">
+        <div className="scroll-edge-blur" aria-hidden />
+        <div className="h-full min-h-0 space-y-8 overflow-y-auto px-4 pb-8 pt-4 lg:px-8">
+        {/* Intro */}
+        <section className="rounded-xl border bg-card p-5 shadow-sm sm:p-6 lg:p-8">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            JRS Studios
+          </p>
+          <h3 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
+            Automated Mp3 Tag Editor
+          </h3>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p>
+              Thanks for using the Automated Mp3 Tag Editor. This project began
+              as a simple Python CLI tool for a Software Engineering course.
+            </p>
+            <p>
+              Three years later, it has grown into a full-stack Rust desktop app
+              with an ML-powered backend, built to handle offline music
+              libraries. We have more planned—including a mobile companion for
+              the music identified here.
+            </p>
+            <p>
+              Thank you for using the app. Feel free to contribute, suggest
+              ideas, or report bugs. Keep scraping!
+            </p>
           </div>
-          <Card className="col-span-5">
-            <CardHeader>
-              <CardTitle>Meet The Team</CardTitle>
-              <CardDescription>
-                <ul>
-                  <li>Jonathan Rufus Samuel - DevOps & Infrastructure Software Engineer - CERN</li>
-                  <li>Shivansh Sahai - SDE 1 - HSBC</li>
-                  <li>Advisor: Swarnlatha P - Senior Professor - VIT Vellore</li>
-                </ul>
-              </CardDescription>
+        </section>
 
-            </CardHeader>
-            <CardContent className="pl-6">
-              <p className="text-l text-foreground">
-                Hey there! Thanks for using the Automated Mp3 Tag Editor, by JRS Studios.
-                This project was once a simple python CLI tool, developed to complete a Software
-                Engineering course. 3 years later, it has been a full-stack Rust based Desktop
-                Application with an ML powered backend, able to handle offline music. We have
-                grand plans, including developing a mobile app to support the music that is
-                identified here. So thank you once again for using our app. Please feel free
-                to contribute, and reach out to us for suggestions as well as Bug reports. Keep Scraping!
+        {/* Team */}
+        <section>
+          <h3 className="mb-3 text-lg font-semibold tracking-tight">
+            Meet the team
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {TEAM.map((person) => (
+              <div
+                key={person.name}
+                className="rounded-xl border bg-card p-4 shadow-sm"
+              >
+                <p className="font-semibold tracking-tight">{person.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {person.role}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {person.org}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Metrics & links */}
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Downloads
               </p>
-            </CardContent>
-            {/* <center><Button onClick={() => window.location = 'mailto:yourmail@domain.com'}>Write To Us</Button></center> */}
-          </Card>
-        </div>
+              <Download className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
+              18
+            </p>
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 my-4 px-16">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Downloads
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">18</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total GitHub Stars
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">15</div>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col items-center justify-center">
-            <Link href="https://github.com/Mp3-Automated-Tag-Editor" target="_blank">
-              <Github className="h-10 w-10" />
-            </Link>
-          </Card>
-          <Card className="flex flex-col items-center justify-center">
-            <Link href="https://doi.org/10.4018/978-1-6684-8098-4.ch012" target="_blank">
-              <ScrollText className="h-10 w-10" />
-            </Link>
-          </Card>
-        </div>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                GitHub stars
+              </p>
+              <Star className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
+              15
+            </p>
+          </div>
 
+          <Link
+            href="https://github.com/Mp3-Automated-Tag-Editor"
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "group flex flex-col justify-between rounded-xl border bg-card p-4 shadow-sm",
+              "transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Source
+              </p>
+              <Github className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+            </div>
+            <p className="mt-2 text-sm font-semibold tracking-tight">
+              View on GitHub
+            </p>
+          </Link>
+
+          <Link
+            href="https://doi.org/10.4018/978-1-6684-8098-4.ch012"
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "group flex flex-col justify-between rounded-xl border bg-card p-4 shadow-sm",
+              "transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Publication
+              </p>
+              <ScrollText className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+            </div>
+            <p className="mt-2 text-sm font-semibold tracking-tight">
+              Read the chapter
+            </p>
+          </Link>
+        </section>
+        </div>
       </div>
     </div>
   );
-}
+};
 
-export default Start;
-
+export default AboutUs;
