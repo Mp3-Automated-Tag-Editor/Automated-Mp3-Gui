@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import { open } from "@tauri-apps/api/dialog";
 import { Music } from "lucide-react";
@@ -18,6 +18,9 @@ import { Heading } from "@/components/heading";
 import { usePlayer } from "@/components/context/PlayerContext";
 import type { MusicView } from "@/components/context/PlayerContext/types";
 import { useToast } from "@/components/ui/use-toast";
+import { ConfigContext } from "@/components/context/ConfigContext";
+import { LibraryGate, useLibraryPath } from "@/components/library-gate";
+import { CONFIG_KEYS } from "@/constants";
 
 import { AlbumArtwork } from "./components/album-artwork";
 import { Sidebar } from "./components/sidebar";
@@ -36,12 +39,14 @@ const MusicPlayer = () => {
     likedTracks,
     isLoading,
     error,
-    libraryPath,
+    libraryPath: playerLibraryPath,
     loadFolder,
     playLibraryShuffled,
     getPlaylistTracks,
     createPlaylist,
   } = usePlayer();
+  const { configs, addConfig } = useContext(ConfigContext);
+  const settingsLibraryPath = useLibraryPath();
   const { toast } = useToast();
 
   const [tab, setTab] = useState("music");
@@ -64,6 +69,7 @@ const MusicPlayer = () => {
         title: "Select a music folder",
       });
       if (!selected || Array.isArray(selected)) return;
+      await addConfig(configs, { key: CONFIG_KEYS.libraryPath, value: selected });
       await loadFolder(selected);
       toast({
         title: "Library loaded",
@@ -88,7 +94,9 @@ const MusicPlayer = () => {
     else setTab("music");
   };
 
+  const libraryPath = settingsLibraryPath || playerLibraryPath;
   const emptyLibrary = !isLoading && tracks.length === 0;
+  const needsGate = !settingsLibraryPath && !playerLibraryPath && emptyLibrary;
 
   const albumGrid = (list: typeof albums, size: "lg" | "sm" = "lg") => (
     <ScrollArea>
@@ -112,6 +120,14 @@ const MusicPlayer = () => {
     if (isLoading) {
       return (
         <p className="py-12 text-sm text-muted-foreground">Loading library…</p>
+      );
+    }
+
+    if (needsGate) {
+      return (
+        <div className="py-4">
+          <LibraryGate />
+        </div>
       );
     }
 

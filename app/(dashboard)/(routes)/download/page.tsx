@@ -1,239 +1,362 @@
 "use client";
-import { open } from "@tauri-apps/api/dialog";
-import { Download } from "lucide-react";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
+import { Download, Loader2, ScrollText, Square } from "lucide-react";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { invoke } from "@tauri-apps/api/tauri";
-import { Dialog, DialogSessions } from "@/components/dialog";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { SimpleLine } from '@/components/terminal-items';
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToastAction } from "@/components/ui/toast";
+import { LibraryGate, useLibraryPath } from "@/components/library-gate";
+import { useToast } from "@/components/ui/use-toast";
+import { invalidateLibraryCache } from "@/app/(dashboard)/(routes)/edit/lib/library-cache";
+import { cn } from "@/lib/utils";
+import {
+  DOWNLOAD,
+  ROUTES,
+  TAURI_COMMANDS,
+  TAURI_EVENTS,
+} from "@/constants";
+
+type DownloadFinished = {
+  success: boolean;
+  code?: number | null;
+  backend: string;
+  message: string;
+  failedCount?: number;
+  failureLogPath?: string | null;
+};
+
+function detectBackend(url: string): typeof DOWNLOAD.backendSpotdl | typeof DOWNLOAD.backendYtdlp | null {
+  const u = url.trim().toLowerCase();
+  if (!u) return null;
+  if (u.includes(DOWNLOAD.spotifyHost) || u.startsWith(DOWNLOAD.spotifyScheme)) {
+    return DOWNLOAD.backendSpotdl;
+  }
+  return DOWNLOAD.backendYtdlp;
+}
 
 const DownloadMusic = () => {
   const router = useRouter();
-  const [directory, setDirectory] = useState<any>();
-  const [bitRate, setBitRate] = useState<number>(320);
-  const [url, setUrl] = useState<string>("");
-  const [error, setError] = useState<boolean>(false);
-  const [errorDetails, setErrorDetails] = useState<{
-    title: string;
-    data: string;
-    type: number;
-  }>({ title: "", data: "", type: 0 });
-  const [hashmap, setHashmap] = useState<Map<number, string>>(new Map());
-  const [completed, setCompleted] = useState<boolean>(false);
-  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setUrl(event.target.value);
-  };
+  const libraryPath = useLibraryPath();
+  const { toast } = useToast();
+
+  const [bitRate, setBitRate] = useState<number>(DOWNLOAD.defaultBitrate);
+  const [url, setUrl] = useState("");
+  const [logs, setLogs] = useState<string[]>([]);
+  const [logsOpen, setLogsOpen] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [ffmpegOk, setFfmpegOk] = useState<boolean | null>(null);
+
+  const backend = useMemo(() => detectBackend(url), [url]);
 
   useEffect(() => {
-    async function listenDownloadDetails() {
-      let ptr = 0;
-      let _unListen: UnlistenFn = await listen("download_progress", (event) => {
-        const progressData: string = JSON.parse(
-          JSON.stringify(event.payload)
-        );
-        hashmap.set(ptr++, progressData);
-        if (progressData.includes("Process Completed: ")) {
-          setCompleted(true);
-        }
-        setHashmap(new Map(hashmap));
-      });
-    }
-
-    listenDownloadDetails();
+    invoke<{ ffmpeg: boolean }>(TAURI_COMMANDS.checkDownloadDeps)
+      .then((r) => setFfmpegOk(!!r?.ffmpeg))
+      .catch(() => setFfmpegOk(null));
   }, []);
 
-  async function startDownload() {
+  useEffect(() => {
+    let disposed = false;
+    const cleanups: Array<() => void> = [];
+
+    const track = (unlisten: () => void) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      cleanups.push(unlisten);
+      if (disposed) {
+        while (cleanups.length) cleanups.pop()?.();
+      }
+    };
+
+    (async () => {
+      track(
+        await listen<string>(TAURI_EVENTS.downloadProgress, (e) => {
+          const line =
+            typeof e.payload === "string"
+              ? e.payload
+              : String(e.payload ?? "");
+          if (!line.trim()) return;
+          setLogs((prev) => [line, ...prev].slice(0, DOWNLOAD.logCap));
+        })
+      );
+      track(
+        await listen<DownloadFinished>(TAURI_EVENTS.downloadFinished, (e) => {
+          const r = e.payload;
+          setRunning(false);
+          const failed = r?.failedCount ?? 0;
+          const failPath = r?.failureLogPath?.trim();
+          if (r?.success) {
+            invalidateLibraryCache();
+            const description =
+              failed > 0
+                ? `${r.message}${
+                    failPath ? ` Failure log: ${failPath}` : ""
+                  }`
+                : "New songs are in your library. Open Edit to review and tag them.";
+            toast({
+              title:
+                failed > 0
+                  ? `Download finished · ${failed} failed`
+                  : "Download complete",
+              description,
+              action: (
+                <ToastAction
+                  altText="Open Edit"
+                  onClick={() => router.push(ROUTES.edit)}
+                >
+                  Open Edit
+                </ToastAction>
+              ),
+            });
+          } else {
+            toast({
+              title: "Download failed",
+              description: failPath
+                ? `${r?.message || "See logs."} Failure log: ${failPath}`
+                : r?.message || "See logs for details.",
+              variant: "destructive",
+            });
+          }
+        })
+      );
+    })();
+
+    return () => {
+      disposed = true;
+      while (cleanups.length) cleanups.pop()?.();
+    };
+  }, [router, toast]);
+
+  const startDownload = async () => {
+    if (!libraryPath) return;
+    if (!url.trim()) {
+      toast({
+        title: "No URL",
+        description: "Paste a Spotify or YouTube URL to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (ffmpegOk === false) {
+      toast({
+        title: "ffmpeg required",
+        description:
+          "Install ffmpeg and ensure it is on your PATH, then restart the app.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLogs([
+      `— Starting download (${backend === DOWNLOAD.backendSpotdl ? "spotDL" : "yt-dlp"}, ${bitRate} kbps)`,
+    ]);
+    setLogsOpen(true);
+    setRunning(true);
+
     try {
-      if (!directory) {
-        setErrorDetails({
-          title: "No Selected Directory",
-          data: "Kindly select a directory that contains music files to be scraped.",
-          type: 0,
-        });
-        setError(true);
-        return;
-      }
-
-      if (!url) {
-        setErrorDetails({
-          title: "No URL Provided",
-          data: "Kindly select a directory that contains music files to be scraped.",
-          type: 0,
-        });
-        setError(true);
-        return;
-      }
-
-      setError(false);
-
-      // Start download
-      const val: any = await invoke("download_music", {
-        path: directory,
-        url: url,
+      await invoke(TAURI_COMMANDS.downloadMusic, {
+        path: libraryPath,
+        url: url.trim(),
         bitrate: bitRate,
-      });      
-
-    } catch (error) {
-      console.log(error);
-      setErrorDetails({
-        title: "Error",
-        data: "An error occured while trying to download the file: " + error,
-        type: 0,
       });
-      setError(true);
+    } catch (error) {
+      setRunning(false);
+      const msg = error instanceof Error ? error.message : String(error);
+      setLogs((prev) => [`✗ ${msg}`, ...prev].slice(0, DOWNLOAD.logCap));
+      toast({
+        title: "Could not start download",
+        description: msg,
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  async function selectDirectory() {
+  const stopDownload = async () => {
     try {
-      const selectedPath = await open({
-        title: "Select Download location",
-        directory: true,
-        multiple: false,
-        defaultPath: "Downloads",
-      });
-      if (selectedPath) {
-        setDirectory(selectedPath);
-      } else return;
-    } catch (error) {
-      console.log(error);
+      await invoke(TAURI_COMMANDS.stopDownloadMusic);
+      setLogs((prev) => [`— Stop requested`, ...prev].slice(0, DOWNLOAD.logCap));
+    } catch {
+      // ignore
     }
+  };
+
+  if (!libraryPath) {
+    return (
+      <div>
+        <Heading
+          title="Download"
+          description="Set a library folder first — downloads land there for Edit and Music."
+          icon={Download}
+          iconColor="text-pink-700"
+          otherProps="mb-8"
+        />
+        <div className="px-4 lg:px-8">
+          <LibraryGate />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
       <Heading
         title="Download"
-        description="Download your favourite music as Mp3 files, stored locally for you to use anytime, anywhere!"
+        description="Spotify via spotDL · YouTube via yt-dlp · files go to your library folder"
         icon={Download}
         iconColor="text-pink-700"
-        otherProps="mb-8"
-        // bgColor="bg-violet-500/10"
+        otherProps="mb-4"
       />
-      <div className="justify-center align-middle"></div>
 
       <div className="px-4 lg:px-8">
-        <div>
-          {error === true ? (
-            <>
-              <Dialog
-                msg={errorDetails.data}
-                title={errorDetails.title}
-                variant="destructive"
-                type={true}
-              />
-              {/* <Alert initial={error} msg={errorDetails.data} header={errorDetails.title} func={setError} type={errorDetails.type} />  goBackFunc={goBack} retryFunc={retry} /> */}
-            </>
-          ) : null}
-          {completed === true ? (
-            <>
-              <DialogSessions msg="Successfully downloaded your files. Click this link to go to the edit page." title="Success!" href={`/edit/editPage?directory=${directory}&totalSongs=${100}&pageNo=${1}&pageSize=${10}`} variant="none" type={false} />              
-            </>
-          ) : null}
-          <div
-            className="rounded-lg 
-                 border
-                w-full 
-                p-4 
-                px-3 
-                md:px-6 
-                focus-within:shadow-sm"
-          >
-            <div className="grid md:grid-cols-2 gap-4 py-4">
-              <div>
-                <h5 className="text-l font-bold">Some Points to Note:</h5>
-                <p className="text-sm py-4">
-                  <ol>
-                    <li>
-                      1. Make sure to install the 2 dependencies - ffmpeg and spotdl. You can follow the docuemntation on how to install them here: 
-                    </li>
-                    <li>
-                      2. You can use Spotify Playlist Links, single Spotify
-                      music links, Youtube Playlists and Youtube Links for the
-                      downloader.
-                    </li>
-                    <li>
-                      3. Set a specific bitrate. In case of constraints, it will
-                      default to the availble bitrate.
-                    </li>
-                  </ol>
-                </p>
-                <div className="space-y-4">
-                  <div className="">
-                    <Label htmlFor="url">Spotify/Youtube URL:</Label>
-                    <Input id="url" value={url} onChange={handleUrlChange} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bitrate">Download Bitrate (kbps): </Label>
-                    <div className="flex space-x-2">
-                      {[128, 192, 256, 320].map((rate) => (
-                        <Button
-                          key={rate}
-                          variant={bitRate === rate ? "outline2" : "outline"} // Highlight selected button
-                          className="h-10 w-10 p-0"
-                          onClick={() => setBitRate(rate)} // Change bitrate on click
-                        >
-                          {rate}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="url">Download Folder: </Label>
-                    <Button
-                      onClick={selectDirectory}
-                      className="col-span-12 lg:col-span-3 w-full"
-                      type="submit"
-                      size="icon"
-                      variant={directory ? "outline2" : "outline"}
-                    >
-                      {directory
-                        ? `Selected Directory: ${directory}`
-                        : "Select Directory"}
-                    </Button>
-                    <Button
-                      onClick={startDownload}
-                      className="col-span-12 lg:col-span-3 w-full"
-                      type="submit"
-                      size="icon"
-                      variant="default"
-                    >
-                      Start Download
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              {/* <Separator orientation="vertical" className="h-full w-[1px] bg-gray-300" /> */}
+        <div className={cn("flex gap-3", logsOpen && "items-stretch")}>
+          <div className="min-w-0 flex-1 space-y-4 rounded-lg border p-4 md:p-6">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">How it works</h3>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  Spotify links (track / album / playlist) use the bundled{" "}
+                  <strong className="font-medium text-foreground">spotDL</strong>{" "}
+                  sidecar (audio still comes from YouTube). Some YouTube sources
+                  need <strong className="font-medium text-foreground">Deno</strong>
+                  ; the app will try to install it via spotDL when missing.
+                </li>
+                <li>
+                  YouTube and other links use bundled{" "}
+                  <strong className="font-medium text-foreground">yt-dlp</strong>
+                  , with title/artist/album defaults embedded when possible.
+                </li>
+                <li>
+                  Files save into your library folder.{" "}
+                  <strong className="font-medium text-foreground">ffmpeg</strong>{" "}
+                  must be installed on PATH (not bundled).
+                </li>
+                <li>
+                  Failed tracks are listed clearly in the logs and saved under{" "}
+                  <strong className="font-medium text-foreground">
+                    ~/.config/auto-mp3/download-logs/
+                  </strong>{" "}
+                  (artist, song, link, reason) — same app data folder as settings.
+                </li>
+              </ul>
+            </div>
 
-              <div className="flex  items-center">
-                <div className="fakeScreen h-[300px] md:h-[250px] sm:h-[200px] lg:h-[500px] xl:h-[900px]">
-                  <p className="line1">
-                    $ Mp3-Automated-Tag-Editor v1.3.0
-                    <span className="cursor1">_</span>
-                  </p>
-                  {[...hashmap].map((entry) => {
-                                let key = entry[0];
-                                let value = entry[1];
-                                return (
-                                  <SimpleLine
-                                    key={key}
-                                    lineType={5}
-                                    result={value} />
-                                );
-                              })}
-                  <p className="line4">
-                    &gt;<span className="cursor4">_</span>
-                  </p>
-                  <div id="snap"></div>
-                </div>
+            {ffmpegOk === false ? (
+              <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                ffmpeg was not detected on PATH. Install it before downloading.
+              </p>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="url">Spotify / YouTube URL</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  id="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://open.spotify.com/… or https://youtube.com/…"
+                  disabled={running}
+                  className="min-w-[200px] flex-1"
+                />
+                {backend ? (
+                  <Badge variant="secondary">
+                    {backend === DOWNLOAD.backendSpotdl ? "Spotify · spotDL" : "yt-dlp"}
+                  </Badge>
+                ) : null}
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Bitrate (kbps)</Label>
+              <div className="flex flex-wrap gap-2">
+                {DOWNLOAD.bitrates.map((rate) => (
+                  <Button
+                    key={rate}
+                    type="button"
+                    variant={bitRate === rate ? "default" : "outline"}
+                    className="h-9 w-14"
+                    disabled={running}
+                    onClick={() => setBitRate(rate)}
+                  >
+                    {rate}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Library folder</Label>
+              <p className="break-all rounded-md bg-muted px-3 py-2 text-sm">
+                {libraryPath}
+              </p>
+              <Button asChild variant="outline" size="sm" type="button">
+                <Link href={ROUTES.settings}>Change in Settings</Link>
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Button
+                type="button"
+                onClick={startDownload}
+                disabled={running || !url.trim()}
+              >
+                {running ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Downloading…
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Start download
+                  </>
+                )}
+              </Button>
+              {running ? (
+                <Button type="button" variant="outline" onClick={stopDownload}>
+                  <Square className="mr-2 h-3 w-3" />
+                  Stop
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant={logsOpen ? "secondary" : "outline"}
+                onClick={() => setLogsOpen((v) => !v)}
+              >
+                <ScrollText className="mr-2 h-4 w-4" />
+                Logs
+              </Button>
+            </div>
           </div>
+
+          {logsOpen ? (
+            <aside className="flex w-96 shrink-0 flex-col rounded-md border bg-card lg:w-[28rem] lg:h-[66vh] xl:w-[32rem] xl:h-[70vh]">
+              <div className="border-b px-3 py-2 text-sm font-medium">
+                Download logs
+              </div>
+              <ScrollArea className="flex-1 p-3">
+                {logs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No log lines yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 font-mono text-[11px] leading-snug text-muted-foreground">
+                    {logs.map((line, i) => (
+                      <li key={`${i}-${line.slice(0, 32)}`}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </ScrollArea>
+            </aside>
+          ) : null}
         </div>
       </div>
     </div>
