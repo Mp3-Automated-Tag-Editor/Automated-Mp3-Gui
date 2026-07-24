@@ -6,6 +6,7 @@ import TitleBar from "@/components/titlebar";
 import { Toaster } from "@/components/ui/toaster";
 import ConfigsProvider from "../components/context/ConfigContext";
 import { PlayerProvider } from "@/components/context/PlayerContext";
+import { DEFAULT_SETTINGS } from "@/constants";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,12 +20,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const defaultData = {
-    test: "test",
-    threads: 1,
-    developerSettings: false,
-  };
-
   return (
     <html
       lang="en"
@@ -42,7 +37,7 @@ export default function RootLayout({
         enableSystem
         disableTransitionOnChange={false}
       >
-        <ConfigsProvider defaultData={defaultData}>
+        <ConfigsProvider defaultData={DEFAULT_SETTINGS}>
           <PlayerProvider>
             <body className={inter.className}>
               <TitleBar />
