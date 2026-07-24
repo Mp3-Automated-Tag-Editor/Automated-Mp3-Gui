@@ -1,9 +1,10 @@
 use std::fs;
-use std::path::Path;
 use std::io::Write;
 use std::fs::OpenOptions;
+use std::path::Path;
 
-use crate::types::Settings;
+use crate::models::Settings;
+use crate::util::get_settings_path;
 
 // Check if a Settings file exists, and create one if it does not.
 pub fn init() {
@@ -60,6 +61,8 @@ fn create_settings_file() {
         boomplay: false,    
         wikipedia: false,   
         google_search: false,
+        library_path: String::new(),
+        scrape_mode: "review".to_string(),
     };
     
 
@@ -75,11 +78,4 @@ fn create_settings_file() {
 fn settings_file_exists() -> bool {
     let settings_path = get_settings_path();
     Path::new(&settings_path).exists()
-}
-
-// Get the path where the database file should be located.
-pub fn get_settings_path() -> String {
-    let home_dir = dirs::home_dir().unwrap();
-    // println!("{:?}",&home_dir.to_str().unwrap().to_string() + "/.config/auto-mp3/settings.json");
-    home_dir.to_str().unwrap().to_string() + r"\.config\auto-mp3\settings.json"
 }

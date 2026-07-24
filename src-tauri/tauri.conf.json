@@ -28,22 +28,14 @@
         "sidecar": true,
         "scope": [
           {
-            "name": "../bin/auto-mp3-downloader.exe",
+            "name": "../bin/yt-dlp",
             "sidecar": true,
-            "args": [
-              "--output",
-              {
-                "validator": "\\S+"
-              },
-              "--quality",
-              {
-                "validator": "\\S+"
-              },
-              "--metadata",              
-              {
-                "validator": "\\S+"
-              }
-            ]
+            "args": true
+          },
+          {
+            "name": "../bin/spotdl",
+            "sidecar": true,
+            "args": true
           }
         ]
       },
@@ -106,7 +98,7 @@
       "deb": {
         "depends": []
       },
-      "externalBin": ["../bin/auto-mp3-downloader"],
+      "externalBin": ["../bin/yt-dlp", "../bin/spotdl"],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

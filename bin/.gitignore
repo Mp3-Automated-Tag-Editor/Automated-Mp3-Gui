@@ -1,0 +1,4 @@
+# Download sidecars (yt-dlp / spotdl) — fetched by scripts/fetch-download-sidecars.ps1
+# Tauri expects: <name>-<target-triple>.exe under this folder.
+*
+!.gitignore

@@ -5,7 +5,7 @@ use std::path::Path;
 use rand::Rng;
 use log::info;
 
-use crate::types;
+use crate::models;
 
 pub fn init() {
     if !db_file_exists() {
@@ -32,8 +32,10 @@ fn db_file_exists() -> bool {
 }
 
 pub fn get_db_path() -> String {
-    let home_dir = dirs::home_dir().unwrap();
-    home_dir.to_str().unwrap().to_string() + r"/.config/auto-mp3/Mp3data.db"
+    crate::util::get_auto_mp3_dir()
+        .join("Mp3data.db")
+        .to_string_lossy()
+        .to_string()
 }
 
 pub fn latest_session() -> Result<String> {
@@ -57,7 +59,7 @@ pub fn latest_session() -> Result<String> {
     Ok(latest_table.unwrap())
 }
 
-pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSongMetadata>, String> {
+pub fn retrieve_session_data(table_name: &str) -> Result<Vec<models::EditViewSongMetadata>, String> {
     let conn = Connection::open(get_db_path()).map_err(|e| format!("Failed to open database: {}", e))?;
     let mut metadata_list = Vec::new();
 
@@ -74,7 +76,7 @@ pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSong
             0
         };
 
-        Ok(types::EditViewSongMetadata {
+        Ok(models::EditViewSongMetadata {
             id: row.get::<_, i32>(0)?.to_string(),
             file: row.get(1)?,
             artist: row.get(2)?,
@@ -85,13 +87,13 @@ pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSong
             track: row.get::<_, Option<u32>>(7)?.unwrap_or(0),
             genre: row.get::<_, Option<String>>(8)?.unwrap_or_default(),
             comments: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
-            albumArtist: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
+            album_artist: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
             composer: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
             discno: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
-            imageSrc: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+            image_src: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
             percentage,
             status: "EDIT".to_string(),
-            sessionName: table_name.to_string(),
+            session_name: table_name.to_string(),
         })
     }).map_err(|e| format!("Failed to query rows: {}", e))?;
 
@@ -105,7 +107,7 @@ pub fn retrieve_session_data(table_name: &str) -> Result<Vec<types::EditViewSong
 }
 
 
-pub fn retrieve_all_sessions() -> Result<Vec<types::Session>> {
+pub fn retrieve_all_sessions() -> Result<Vec<models::Session>> {
     info!("Hello");
     let conn = Connection::open(get_db_path())?;
     let mut sessions = Vec::new();
@@ -133,7 +135,7 @@ pub fn retrieve_all_sessions() -> Result<Vec<types::Session>> {
                 [],
                 |row| row.get(0),
             ).unwrap_or(0);
-            let session = types::Session {
+            let session = models::Session {
                 id: generate_random_id(),
                 table_name: table_name.clone(),
                 date,
