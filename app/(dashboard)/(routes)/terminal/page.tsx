@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import { Heading } from "@/components/heading";
 import { Progress } from "@/components/ui/progress";
 import { invoke } from "@tauri-apps/api/tauri";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { z } from "zod";
 import "../../../globals.css";
@@ -664,4 +664,10 @@ const Terminal = () => {
   );
 };
 
-export default Terminal;
+export default function TerminalPage() {
+  return (
+    <Suspense fallback={null}>
+      <Terminal />
+    </Suspense>
+  );
+}

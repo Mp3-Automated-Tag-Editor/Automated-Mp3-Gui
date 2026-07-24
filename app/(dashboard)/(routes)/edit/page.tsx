@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { Heading } from "@/components/heading";
@@ -53,4 +53,10 @@ const EditHub = () => {
   );
 };
 
-export default EditHub;
+export default function EditPage() {
+  return (
+    <Suspense fallback={null}>
+      <EditHub />
+    </Suspense>
+  );
+}

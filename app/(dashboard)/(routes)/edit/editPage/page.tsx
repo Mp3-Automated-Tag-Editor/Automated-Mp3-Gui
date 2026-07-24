@@ -9,7 +9,14 @@ import { columns } from "../components/columns";
 import { useSearchParams, useRouter } from "next/navigation";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Loading from "@/components/loading";
 import { LibraryGate, useLibraryPath } from "@/components/library-gate";
 import { ConfigContext } from "@/components/context/ConfigContext";
@@ -485,4 +492,10 @@ const EditPage = () => {
   );
 };
 
-export default EditPage;
+export default function EditPageRoute() {
+  return (
+    <Suspense fallback={null}>
+      <EditPage />
+    </Suspense>
+  );
+}
