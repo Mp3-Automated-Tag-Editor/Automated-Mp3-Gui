@@ -243,6 +243,28 @@ export const TABLE = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// About
+// ---------------------------------------------------------------------------
+
+export const TEAM = [
+  {
+    name: "Jonathan Rufus Samuel",
+    role: "DevOps & Infrastructure Software Engineer",
+    org: "CERN",
+  },
+  {
+    name: "Shivansh Sahai",
+    role: "SDE 1",
+    org: "HSBC",
+  },
+  {
+    name: "Swarnlatha P",
+    role: "Advisor · Senior Professor",
+    org: "VIT Vellore",
+  },
+] as const;
+
+// ---------------------------------------------------------------------------
 // Navigation / dashboard cards
 // ---------------------------------------------------------------------------
 
