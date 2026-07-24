@@ -13,6 +13,14 @@ import React, {
 } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import { Store } from "tauri-plugin-store-api";
+import {
+  CONFIG_KEYS,
+  EMPTY_TAG,
+  PLAYER,
+  STORE_FILE,
+  STORE_KEYS,
+  TAURI_COMMANDS,
+} from "@/constants";
 import { groupAlbums, groupArtists, shuffleArray } from "./music-utils";
 import type {
   PlayerContextState,
@@ -21,10 +29,10 @@ import type {
   UserPlaylist,
 } from "./types";
 
-const store = new Store(".settings.dat");
+const store = new Store(STORE_FILE);
 
-export const LIKED_PLAYLIST_ID = "liked-songs";
-export const RECENT_PLAYLIST_ID = "recently-played";
+export const LIKED_PLAYLIST_ID = PLAYER.likedPlaylistId;
+export const RECENT_PLAYLIST_ID = PLAYER.recentPlaylistId;
 
 const defaultPlaylists = (): UserPlaylist[] => [
   { id: LIKED_PLAYLIST_ID, name: "Liked Songs", trackPaths: [] },
@@ -37,16 +45,16 @@ function normalizeTrack(raw: any): Track {
   return {
     id: String(raw.id ?? raw.path ?? `${Date.now()}-${Math.random()}`),
     file: String(raw.file ?? ""),
-    artist: String(raw.artist ?? "None"),
-    title: String(raw.title ?? "None"),
-    album: String(raw.album ?? "None"),
+    artist: String(raw.artist ?? EMPTY_TAG),
+    title: String(raw.title ?? EMPTY_TAG),
+    album: String(raw.album ?? EMPTY_TAG),
     path: String(raw.path ?? ""),
     year: Number(raw.year ?? 0),
     track: Number(raw.track ?? 0),
-    genre: String(raw.genre ?? "None"),
-    comments: String(raw.comments ?? "None"),
-    albumArtist: String(raw.albumArtist ?? "None"),
-    composer: String(raw.composer ?? "None"),
+    genre: String(raw.genre ?? EMPTY_TAG),
+    comments: String(raw.comments ?? EMPTY_TAG),
+    albumArtist: String(raw.albumArtist ?? EMPTY_TAG),
+    composer: String(raw.composer ?? EMPTY_TAG),
     discno: Number(raw.discno ?? 0),
     imageSrc: String(raw.imageSrc ?? ""),
     percentage: Number(raw.percentage ?? 0),
@@ -66,7 +74,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolumeState] = useState(0.8);
+  const [volume, setVolumeState] = useState<number>(PLAYER.defaultVolume);
   const [muted, setMuted] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
@@ -111,8 +119,8 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
       try {
         await store.load();
         const existing =
-          ((await store.get("musicPlayer")) as Record<string, unknown>) || {};
-        await store.set("musicPlayer", { ...existing, ...partial });
+          ((await store.get(STORE_KEYS.musicPlayer)) as Record<string, unknown>) || {};
+        await store.set(STORE_KEYS.musicPlayer, { ...existing, ...partial });
         await store.save();
       } catch {
         // Store may be unavailable outside Tauri
@@ -126,7 +134,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const result = await invoke<any[]>("read_music_directory", { directory });
+        const result = await invoke<any[]>(TAURI_COMMANDS.readMusicDirectory, { directory });
         const normalized = (result || [])
           .map(normalizeTrack)
           .filter((t) => t.path);
@@ -151,7 +159,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
     (async () => {
       try {
         await store.load();
-        const data = (await store.get("musicPlayer")) as {
+        const data = (await store.get(STORE_KEYS.musicPlayer)) as {
           libraryPath?: string;
           likedPaths?: string[];
           recentlyPlayed?: string[];
@@ -205,6 +213,20 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
         }
         if (data.libraryPath) {
           await loadFolder(data.libraryPath);
+        } else {
+          // Prefer Settings libraryPath as source of truth
+          try {
+            const settings = (await store.get(STORE_KEYS.settings)) as {
+              [CONFIG_KEYS.libraryPath]?: string;
+            } | null;
+            const settingsLibraryPath = settings?.[CONFIG_KEYS.libraryPath];
+            if (settingsLibraryPath) {
+              await loadFolder(settingsLibraryPath);
+              await persistMusicState({ libraryPath: settingsLibraryPath });
+            }
+          } catch {
+            // ignore
+          }
         }
       } catch {
         // ignore
@@ -218,7 +240,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const pushRecentlyPlayed = useCallback(
     (path: string) => {
       setRecentlyPlayed((prev) => {
-        const next = [path, ...prev.filter((p) => p !== path)].slice(0, 50);
+        const next = [path, ...prev.filter((p) => p !== path)].slice(0, PLAYER.recentLimit);
         setPlaylists((pls) => {
           const updated = pls.map((p) =>
             p.id === RECENT_PLAYLIST_ID ? { ...p, trackPaths: next } : p
@@ -540,10 +562,21 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
     [loadAndPlay]
   );
 
+  const upsertTrackMetadata = useCallback(
+    (partial: Partial<Track> & { path: string }) => {
+      const merge = (t: Track): Track =>
+        t.path === partial.path ? { ...t, ...partial, path: t.path } : t;
+
+      setTracks((prev) => prev.map(merge));
+      setQueue((prev) => prev.map(merge));
+    },
+    []
+  );
+
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "metadata";
-    audio.volume = 0.8;
+    audio.volume = PLAYER.defaultVolume;
     audioRef.current = audio;
 
     const onTime = () => setPosition(audio.currentTime || 0);
@@ -640,6 +673,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
     addToPlaylist,
     getPlaylistTracks,
     createStation,
+    upsertTrackMetadata,
     albums,
     artists,
     listenNowAlbums,

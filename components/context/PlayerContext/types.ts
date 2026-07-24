@@ -90,6 +90,8 @@ export type PlayerContextState = {
   addToPlaylist: (playlistId: string, trackPaths: string[]) => void;
   getPlaylistTracks: (playlistId: string) => Track[];
   createStation: (seed: Track) => void;
+  /** Patch a track in-memory after Edit saves tags (e.g. album art). */
+  upsertTrackMetadata: (track: Partial<Track> & { path: string }) => void;
   albums: AlbumGroup[];
   artists: ArtistGroup[];
   listenNowAlbums: AlbumGroup[];

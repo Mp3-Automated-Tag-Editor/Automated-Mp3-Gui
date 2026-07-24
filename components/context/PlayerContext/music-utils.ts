@@ -1,26 +1,38 @@
+import { DEFAULT_COVER, EMPTY_TAG } from "@/constants";
 import type { AlbumGroup, ArtistGroup, Track } from "./types";
 
-export const DEFAULT_COVER = "/def-album-art.png";
+export { DEFAULT_COVER };
+
+/** Infer data-URL mime from raw base64 (JPEG/PNG/GIF magic). */
+export function coverDataUrl(base64: string): string {
+  const b64 = base64.trim();
+  if (!b64) return DEFAULT_COVER;
+  let mime = "image/jpeg";
+  if (b64.startsWith("/9j/") || b64.startsWith("/9j4")) mime = "image/jpeg";
+  else if (b64.startsWith("iVBOR")) mime = "image/png";
+  else if (b64.startsWith("R0lGOD")) mime = "image/gif";
+  return `data:${mime};base64,${b64}`;
+}
 
 export function trackCoverSrc(track: Track | null | undefined): string {
   if (track?.imageSrc) {
-    return `data:image/png;base64,${track.imageSrc}`;
+    return coverDataUrl(track.imageSrc);
   }
   return DEFAULT_COVER;
 }
 
 export function displayTitle(track: Track): string {
-  if (track.title && track.title !== "None") return track.title;
+  if (track.title && track.title !== EMPTY_TAG) return track.title;
   return track.file?.replace(/\.mp3$/i, "") || "Unknown Title";
 }
 
 export function displayArtist(track: Track): string {
-  if (track.artist && track.artist !== "None") return track.artist;
+  if (track.artist && track.artist !== EMPTY_TAG) return track.artist;
   return "Unknown Artist";
 }
 
 export function displayAlbum(track: Track): string {
-  if (track.album && track.album !== "None") return track.album;
+  if (track.album && track.album !== EMPTY_TAG) return track.album;
   return "Unknown Album";
 }
 

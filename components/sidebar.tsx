@@ -2,82 +2,53 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Montserrat } from 'next/font/google';
-import { AudioLines, Play, Info, LayoutDashboard, Music, Settings2, BarChartHorizontalIcon, Download, Pencil, AlignJustify, X } from "lucide-react";
+import { Info, Settings2, AlignJustify, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
+import { ROUTES, sidebarRoutes } from "@/constants";
 
-const poppins = Montserrat({ weight: '600', subsets: ['latin'] });
-
-const routes = [
-  {
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    href: '/dashboard',
-    color: "text-sky-500"
-  },
-  {
-    label: 'Start Scraping',
-    icon: Play,
-    href: '/start',
-    color: "text-violet-500",
-  },
-  {
-    label: 'Download',
-    icon: Download,
-    color: "text-pink-700",
-    href: '/download',
-  },
-  {
-    label: 'Stream & Connect',
-    icon: AudioLines,
-    color: "text-blue-700",
-    href: '/stream',
-  },
-  {
-    label: 'Edit',
-    icon: Pencil,
-    color: "text-orange-700",
-    href: '/edit',
-  },
-  {
-    label: 'Music Playstation',
-    icon: Music,
-    color: "text-green-700",
-    href: '/music',
-  },
-  {
-    label: 'Statistics',
-    icon: BarChartHorizontalIcon,
-    color: "text-yellow-700",
-    href: '/stats',
-  }
-  // {
-  //   label: 'Settings',
-  //   icon: Settings2,
-  //   href: '/settings',
-  // },
-];
-
-const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, toggleSidebar: any }) => {
+const Sidebar = ({
+  isSidebarOpen,
+  toggleSidebar,
+}: {
+  isSidebarOpen: boolean;
+  toggleSidebar: any;
+}) => {
   const pathname = usePathname();
 
   return (
     <div className="flex h-full flex-col space-y-4 bg-black py-4 text-white">
       <div className="px-3 py-2 flex-1">
-        <Link href="/dashboard" className="whitespace-nowrap duration-300 flex justify-center p-3 w-full pl-3 mb-4">
-          <div className={`relative align-baseline rounded-lg transition-all duration-500 ease-in-out ${isSidebarOpen ? "h-20 w-44" : "h-10 w-10 mb-10"}`}>
+        <Link
+          href={ROUTES.dashboard}
+          className="whitespace-nowrap duration-300 flex justify-center p-3 w-full pl-3 mb-4"
+        >
+          <div
+            className={`relative align-baseline rounded-lg transition-all duration-500 ease-in-out ${
+              isSidebarOpen ? "h-20 w-44" : "h-10 w-10 mb-10"
+            }`}
+          >
             {isSidebarOpen ? (
-              <Image fill alt="Logo" src="/1.png" className="object-cover transition-opacity duration-300 ease-in-out" />
+              <Image
+                fill
+                alt="Logo"
+                src="/1.png"
+                className="object-cover transition-opacity duration-300 ease-in-out"
+              />
             ) : (
-              <Image fill alt="Logo" src="/logo.png" className="object-cover transition-all duration-300 ease-in-out" />
+              <Image
+                fill
+                alt="Logo"
+                src="/logo.png"
+                className="object-cover transition-all duration-300 ease-in-out"
+              />
             )}
           </div>
         </Link>
         <div className="space-y-2">
-          {routes.map((route) => (
+          {sidebarRoutes.map((route) => (
             <Link
               key={route.href}
               href={route.href}
@@ -103,11 +74,11 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
           ))}
           <Separator className="bg-violet-400" />
           <Link
-            key={'Settings'}
-            href={'/settings'}
+            key="Settings"
+            href={ROUTES.settings}
             className={cn(
               "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg",
-              pathname.includes('/settings')
+              pathname.includes(ROUTES.settings)
                 ? "text-white bg-white/10"
                 : "text-zinc-400"
             )}
@@ -125,11 +96,13 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
             </div>
           </Link>
           <Link
-            key={'About Us'}
-            href={'/about-us'}
+            key="About Us"
+            href={ROUTES.aboutUs}
             className={cn(
               "whitespace-nowrap duration-300 text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg",
-              pathname.includes('/about-us') ? "text-white bg-white/10" : "text-zinc-400",
+              pathname.includes(ROUTES.aboutUs)
+                ? "text-white bg-white/10"
+                : "text-zinc-400"
             )}
           >
             <div className="flex items-center flex-1">
@@ -144,31 +117,25 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
               </span>
             </div>
           </Link>
-
         </div>
       </div>
 
       <div className="px-3 py-2 flex-col space-y-2">
-        {/* <Link
-          key={'About Us'}
-          href={'/about-us'}
+        <div
           className={cn(
-            "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg",
-            pathname === '/about-us' ? "text-white bg-white/10" : "text-zinc-400",
+            "whitespace-nowrap duration-300 text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg overflow-hidden transition-all",
+            isSidebarOpen ? "text-zinc-400" : "text-white"
           )}
+          onClick={toggleSidebar}
         >
           <div className="flex items-center flex-1">
-            <Info className={cn("h-5 w-5 mr-3", "text-zinc-400")} />
-            {isSidebarOpen ? "About Us" : null}
-          </div>
-        </Link>
-        <Separator /> */}
-        <div className={cn(
-          "whitespace-nowrap duration-300 text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg overflow-hidden transition-all",
-          isSidebarOpen ? "text-zinc-400" : "text-white",
-        )} onClick={toggleSidebar}>
-          <div className="flex items-center flex-1">
-            {!isSidebarOpen ? <AlignJustify className={cn("h-5 w-5 mr-3", "text-zinc-400", "text-zinc-400")} /> : <X className={cn("h-5 w-5 mr-3", "text-zinc-400", "text-red-700")} />}
+            {!isSidebarOpen ? (
+              <AlignJustify
+                className={cn("h-5 w-5 mr-3", "text-zinc-400", "text-zinc-400")}
+              />
+            ) : (
+              <X className={cn("h-5 w-5 mr-3", "text-zinc-400", "text-red-700")} />
+            )}
             <span
               className={cn(
                 "transition-opacity duration-300",
@@ -180,10 +147,6 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: { isSidebarOpen: boolean, tog
           </div>
         </div>
       </div>
-      {/* <FreeCounter 
-        apiLimitCount={apiLimitCount} 
-        isPro={isPro}
-      /> */}
     </div>
   );
 };

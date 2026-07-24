@@ -4,14 +4,16 @@ import React, { createContext, useState, FC, ReactElement, useEffect } from "rea
 import { ConfigContextState } from "./types";
 import { invoke } from "@tauri-apps/api/tauri";
 import { Store } from "tauri-plugin-store-api";
+import {
+  CONFIG_KEYS,
+  DEFAULT_SETTINGS,
+  SCRAPE_MODE,
+  STORE_FILE,
+  STORE_KEYS,
+  TAURI_COMMANDS,
+} from "@/constants";
 
-// interface Settings {
-//     threads: number,
-//     test: string,
-//     developerSettings: boolean
-// }
-
-const store = new Store(".settings.dat");
+const store = new Store(STORE_FILE);
 
 const contextDefaultValues: ConfigContextState = {
     configs: {},
@@ -38,48 +40,14 @@ const ConfigsProvider: FC<ProviderPorps> = (props) => {
 
             const keys = await store.keys()
 
-            if (!keys.includes('settings')) {
-                await store.set("settings",
-                    {
-                        "test": "test",
-                        "threads": 1,
-                        "developerSettings": false,
-                        "useCache": true,
-                        "spotify": true,
-                        "palm": true,
-                        "ytmusic": true,
-                        "itunes": true,
-                        "genius": true,
-                        "groq": true,
-                        "deepseekR1": false,
-                        "amazonMusic": false,
-                        "appleMusic": false,
-                        "theAudioDb": false,
-                        "deezer": false,
-                        "musicBrainz": false,
-                        "echonest": false,
-                        "pandora": false,
-                        "soundCloud": false,
-                        "tidal": false,
-                        "napster": false,
-                        "qobuz": false,
-                        "qqMusic": false,
-                        "yandexMusic": false,
-                        "vkMusic": false,
-                        "anghami": false,
-                        "zvuk": false,
-                        "gaana": false,
-                        "jiosaavn": false,
-                        "resso": false,
-                        "boomplay": false,
-                        "wikipedia": false,
-                        "googleSearch": false
-                    }
-                );
+            if (!keys.includes(STORE_KEYS.settings)) {
+                await store.set(STORE_KEYS.settings, { ...DEFAULT_SETTINGS });
 
                 await store.save();
             }
-            const data = await store.get("settings");
+            const data = (await store.get(STORE_KEYS.settings)) as Record<string, unknown> | null;
+            if (data && data[CONFIG_KEYS.libraryPath] === undefined) data[CONFIG_KEYS.libraryPath] = "";
+            if (data && data[CONFIG_KEYS.scrapeMode] === undefined) data[CONFIG_KEYS.scrapeMode] = SCRAPE_MODE.review;
             setConfigs(data);
         }
         asFunction();
@@ -90,10 +58,10 @@ const ConfigsProvider: FC<ProviderPorps> = (props) => {
 
         setConfigs(prevConfig);
 
-        await store.set("settings", prevConfig);
+        await store.set(STORE_KEYS.settings, prevConfig);
         await store.save();
 
-        invoke("save_settings", { data: prevConfig });
+        invoke(TAURI_COMMANDS.saveSettings, { data: prevConfig });
     }
 
     return (
