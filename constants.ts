@@ -237,6 +237,105 @@ export const STATS = {
   scrapeLogCap: 200,
 } as const;
 
+export const GENRE_PIE_PALETTE = [
+  "#0ea5e9",
+  "#8b5cf6",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#ec4899",
+  "#14b8a6",
+  "#6366f1",
+  "#94a3b8",
+] as const;
+
+export type StatsMapPalette = {
+  ocean: string;
+  empty: string;
+  stroke: string;
+  hoverEmpty: string;
+  selected: string;
+  selectedHover: string;
+  heat: string[];
+  heatHover: string;
+};
+
+export const STATS_MAP_PALETTE_LIGHT: StatsMapPalette = {
+  ocean: "#e8eef4",
+  empty: "#c3ced9",
+  stroke: "#94a3b8",
+  hoverEmpty: "#a8b6c4",
+  selected: "#d97706",
+  selectedHover: "#f59e0b",
+  heat: ["#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#0369a1"],
+  heatHover: "#67e8f9",
+};
+
+export const STATS_MAP_PALETTE_DARK: StatsMapPalette = {
+  ocean: "#0f172a",
+  empty: "#1e293b",
+  stroke: "#334155",
+  hoverEmpty: "#334155",
+  selected: "#f59e0b",
+  selectedHover: "#fbbf24",
+  heat: ["#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#67e8f9"],
+  heatHover: "#a5f3fc",
+};
+
+/** Input shape for highlight cards (matches library highlights payload). */
+export type HighlightCardSource = {
+  topArtist: string | null;
+  topArtistCount: number;
+  dominantGenre: string | null;
+  dominantGenreCount: number;
+  oldestYear: number | null;
+  newestYear: number | null;
+  likedCount: number;
+  recentTitle: string | null;
+  recentArtist: string | null;
+};
+
+export function buildHighlightCards(highlights: HighlightCardSource) {
+  return [
+    {
+      label: "Top artist",
+      value: highlights.topArtist ?? "—",
+      hint: highlights.topArtist
+        ? `${highlights.topArtistCount} tracks in your library`
+        : "Add music to see this",
+    },
+    {
+      label: "Dominant genre",
+      value: highlights.dominantGenre ?? "—",
+      hint: highlights.dominantGenre
+        ? `${highlights.dominantGenreCount} tracks`
+        : "Genres appear from tags",
+    },
+    {
+      label: "Oldest year",
+      value: highlights.oldestYear?.toString() ?? "—",
+      hint: "Earliest release year tagged",
+    },
+    {
+      label: "Newest year",
+      value: highlights.newestYear?.toString() ?? "—",
+      hint: "Latest release year tagged",
+    },
+    {
+      label: "Liked songs",
+      value: highlights.likedCount.toString(),
+      hint: "From your Liked Songs playlist",
+    },
+    {
+      label: "Recently played",
+      value: highlights.recentTitle ?? "—",
+      hint: highlights.recentArtist
+        ? highlights.recentArtist
+        : "Play something to populate this",
+    },
+  ];
+}
+
 export const TABLE = {
   defaultPageSize: 10,
   pageSizes: [10, 20, 30, 40, 50, 100] as const,
