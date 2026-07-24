@@ -29,10 +29,13 @@ fn main() {
     #[cfg(not(debug_assertions))]
     {
         // Only compiled for release — create src-tauri/.env.production before `tauri build`
-        let prod_env: &str = include_str!("../.env.production");
+        // Strip a UTF-8 BOM if present (common on Windows-edited files); it breaks dotenvy.
+        let prod_env = include_str!("../.env.production").trim_start_matches('\u{feff}');
         for item in dotenvy::from_read_iter(prod_env.as_bytes()) {
-            let (key, value) = item.expect("Invalid .env.production entry");
-            std::env::set_var(key, value);
+            match item {
+                Ok((key, value)) => std::env::set_var(key, value),
+                Err(err) => log::error!("Skipping invalid .env.production entry: {err}"),
+            }
         }
     }
 
