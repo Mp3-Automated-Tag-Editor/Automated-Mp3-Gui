@@ -48,20 +48,21 @@ const ConfigsProvider: FC<ProviderPorps> = (props) => {
             const data = (await store.get(STORE_KEYS.settings)) as Record<string, unknown> | null;
             if (data && data[CONFIG_KEYS.libraryPath] === undefined) data[CONFIG_KEYS.libraryPath] = "";
             if (data && data[CONFIG_KEYS.scrapeMode] === undefined) data[CONFIG_KEYS.scrapeMode] = SCRAPE_MODE.review;
+            if (data && data[CONFIG_KEYS.darkSidebar] === undefined) data[CONFIG_KEYS.darkSidebar] = false;
             setConfigs(data);
         }
         asFunction();
     }, [])
 
     const addConfig = async (prevConfig: any, newConfig: ConfigObject) => {
-        prevConfig[newConfig.key] = newConfig.value;
+        const next = { ...prevConfig, [newConfig.key]: newConfig.value };
 
-        setConfigs(prevConfig);
+        setConfigs(next);
 
-        await store.set(STORE_KEYS.settings, prevConfig);
+        await store.set(STORE_KEYS.settings, next);
         await store.save();
 
-        invoke(TAURI_COMMANDS.saveSettings, { data: prevConfig });
+        invoke(TAURI_COMMANDS.saveSettings, { data: next });
     }
 
     return (

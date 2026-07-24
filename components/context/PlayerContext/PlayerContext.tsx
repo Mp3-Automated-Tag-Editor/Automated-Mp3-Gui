@@ -28,6 +28,8 @@ import type {
   Track,
   UserPlaylist,
 } from "./types";
+import { useMediaSession } from "./use-media-session";
+import { useTaskbarControls } from "./use-taskbar-controls";
 
 const store = new Store(STORE_FILE);
 
@@ -301,7 +303,7 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
     loadAndPlay(shuffled[0], 0, shuffled);
   }, [loadAndPlay]);
 
-  const togglePlay = useCallback(() => {
+  const play = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
     if (currentIndexRef.current < 0 || !queueRef.current.length) {
@@ -310,13 +312,26 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
       }
       return;
     }
-    if (audio.paused) {
-      audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-    } else {
-      audio.pause();
-      setIsPlaying(false);
-    }
+    audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
   }, [playTrack]);
+
+  const pause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    setIsPlaying(false);
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (currentIndexRef.current < 0 || !queueRef.current.length) {
+      play();
+      return;
+    }
+    if (audio.paused) play();
+    else pause();
+  }, [play, pause]);
 
   const goToIndex = useCallback(
     (index: number) => {
@@ -608,6 +623,22 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
       audioRef.current.muted = muted;
     }
   }, [volume, muted]);
+
+  useMediaSession(currentTrack, isPlaying, position, duration, {
+    play,
+    pause,
+    next,
+    prev,
+    seek,
+    getPosition: () => audioRef.current?.currentTime ?? position,
+    getDuration: () => audioRef.current?.duration || duration,
+  });
+
+  useTaskbarControls(isPlaying, {
+    togglePlay,
+    next,
+    prev,
+  });
 
   const albums = useMemo(() => groupAlbums(tracks), [tracks]);
   const artists = useMemo(() => groupArtists(tracks), [tracks]);

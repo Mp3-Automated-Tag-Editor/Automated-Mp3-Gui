@@ -48,7 +48,9 @@ export type MusicView =
   | "playlists"
   | "made-for-you"
   | "playlist"
-  | "player";
+  | "player"
+  | "album-detail"
+  | "artist-detail";
 
 export type PlayerContextState = {
   tracks: Track[];

@@ -79,6 +79,7 @@ export default function TitleBar({
 
       <div
         className={cn("titlebar-pill", hasTrack && "titlebar-pill-playing")}
+        data-tauri-drag-region
         style={
           hasTrack
             ? {
@@ -162,7 +163,7 @@ export default function TitleBar({
         <ModeToggle />
         <button
           type="button"
-          className="titlebar-button"
+          className="titlebar-button titlebar-button-minimize"
           onClick={() => appWindow?.minimize()}
           title="Minimize"
         >
@@ -170,7 +171,7 @@ export default function TitleBar({
         </button>
         <button
           type="button"
-          className="titlebar-button"
+          className="titlebar-button titlebar-button-maximize"
           onClick={() => appWindow?.toggleMaximize()}
           title="Maximize"
         >

@@ -25,8 +25,8 @@ export function MiniEq({ playing = false, className }: MiniEqProps) {
         <span
           key={i}
           className={cn(
-            "w-[3px] rounded-full bg-foreground/70 dark:bg-white/70",
-            playing ? "mini-eq-bar" : "h-1 opacity-50"
+            "w-[3px] rounded-full",
+            playing ? "mini-eq-bar" : "mini-eq-bar-idle h-1"
           )}
           style={
             playing

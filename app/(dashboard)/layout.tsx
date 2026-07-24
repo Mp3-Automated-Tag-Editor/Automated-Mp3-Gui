@@ -22,21 +22,26 @@ const DashboardLayout = ({
     };
   }, [isSidebarOpen]);
 
+  const sidebarWidthClass = isSidebarOpen ? "md:w-72" : "md:w-[4.25rem]";
+  const mainPadClass = isSidebarOpen ? "md:pl-72" : "md:pl-[4.25rem]";
+
   return (
     <>
       <div
-        className={`relative z-[45] h-full transition-all duration-300 md:fixed md:inset-y-0 md:flex md:flex-col ${
-          isSidebarOpen ? "md:w-72" : "md:w-[68px]"
-        }`}
+        className={`relative z-[45] h-full transition-all duration-300 md:fixed md:inset-y-0 md:flex md:flex-col ${sidebarWidthClass}`}
       >
         <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       </div>
       <main
-        className={`flex h-screen flex-col pt-10 transition-all duration-300 ${
-          isSidebarOpen ? "md:pl-72" : "md:pl-20"
-        }`}
+        className={`flex h-full min-h-0 flex-col pt-10 transition-all duration-300 ${mainPadClass}`}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0 flex flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {children}
+            </div>
+          </div>
+        </div>
       </main>
     </>
   );

@@ -10,6 +10,7 @@ mod constants;
 mod models;
 mod repository;
 mod services;
+mod taskbar;
 mod util;
 
 // Main Func
@@ -67,7 +68,8 @@ fn main() {
             commands::lookup_artist_country,
             commands::resolve_artist_countries,
             commands::compute_library_stats,
-            commands::scrape_library_paths
+            commands::scrape_library_paths,
+            taskbar::set_taskbar_playback_state
         ])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
@@ -90,6 +92,14 @@ fn main() {
                 // After it's done, close the splashscreen and display the main window
                 splashscreen_window.close().unwrap();
                 main_window.show().unwrap();
+
+                // Thumbnail toolbar must be attached on the UI thread.
+                let window = main_window.clone();
+                let _ = main_window.run_on_main_thread(move || {
+                    if let Err(err) = taskbar::attach(&window) {
+                        log::error!("Failed to attach taskbar thumbnail controls: {err}");
+                    }
+                });
             });
 
             Ok(())

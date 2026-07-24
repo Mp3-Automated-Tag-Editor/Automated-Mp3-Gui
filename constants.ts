@@ -20,6 +20,7 @@ export const CONFIG_KEYS = {
   scrapeMode: "scrapeMode",
   threads: "threads",
   developerSettings: "developerSettings",
+  darkSidebar: "darkSidebar",
 } as const;
 
 export const SCRAPE_MODE = {
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   test: "test",
   threads: 1,
   developerSettings: false,
+  darkSidebar: false,
   useCache: true,
   spotify: true,
   palm: true,
@@ -173,6 +175,9 @@ export const TAURI_EVENTS = {
   downloadProgress: "download_progress",
   downloadFinished: "download_finished",
   artistCountryProgress: "artist_country_progress",
+  mediaPrev: "media-prev",
+  mediaToggle: "media-toggle",
+  mediaNext: "media-next",
 } as const;
 
 export const TAURI_COMMANDS = {
@@ -194,6 +199,7 @@ export const TAURI_COMMANDS = {
   resolveArtistCountries: "resolve_artist_countries",
   fetchAlbumArtUrl: "fetch_album_art_url",
   setAlbumArt: "set_album_art",
+  setTaskbarPlaybackState: "set_taskbar_playback_state",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -221,6 +227,7 @@ export const PLAYER = {
   recentPlaylistId: "recently-played",
   recentLimit: 50,
   defaultVolume: 0.8,
+  musicSidebarOpenKey: "musicSidebarOpen",
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -27,7 +27,6 @@ export default function RootLayout({
       style={{
         scrollBehavior: "smooth",
         scrollMarginTop: "14px",
-        scrollbarColor: "green",
       }}
       suppressHydrationWarning
     >
@@ -35,11 +34,11 @@ export default function RootLayout({
         attribute="class"
         defaultTheme="system"
         enableSystem
-        disableTransitionOnChange={false}
+        disableTransitionOnChange={true}
       >
         <ConfigsProvider defaultData={DEFAULT_SETTINGS}>
           <PlayerProvider>
-            <body className={inter.className}>
+            <body className={`${inter.className} h-full overflow-hidden`}>
               <TitleBar />
               {children}
               <Toaster />

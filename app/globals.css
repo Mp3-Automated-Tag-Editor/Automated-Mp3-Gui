@@ -8,6 +8,11 @@ body,
   height: 100%;
 }
 
+html,
+body {
+  overflow: hidden;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -39,6 +44,22 @@ body,
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
+
+    --sidebar: 240 5% 96%;
+    --sidebar-foreground: 240 6% 10%;
+    --sidebar-muted: 240 4% 46%;
+    --sidebar-accent: 240 5% 90%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 240 6% 90%;
+
+    --titlebar-drag: 0 0% 100% / 0.55;
+    --titlebar-drag-border: 222 47% 11% / 0.08;
+    --titlebar-pill: 210 40% 96%;
+    --titlebar-pill-foreground: 222 16% 12%;
+    --titlebar-pill-border: 222 47% 11% / 0.12;
+    --titlebar-pill-shadow: 222 47% 11% / 0.08;
+
+    color-scheme: light;
   }
 
   .dark {
@@ -69,6 +90,22 @@ body,
     --border: 215 12% 20%;
     --input: 215 12% 20%;
     --ring: 215 14% 55%;
+
+    --sidebar: 240 6% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-muted: 240 5% 64%;
+    --sidebar-accent: 240 5% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 16%;
+
+    --titlebar-drag: 222 47% 11% / 0.45;
+    --titlebar-drag-border: 215 16% 65% / 0.12;
+    --titlebar-pill: 215 25% 18%;
+    --titlebar-pill-foreground: 210 20% 96%;
+    --titlebar-pill-border: 215 16% 65% / 0.2;
+    --titlebar-pill-shadow: 0 0% 0% / 0.25;
+
+    color-scheme: dark;
   }
 }
 
@@ -79,6 +116,83 @@ body,
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+.sidebar-force-dark {
+  --sidebar: 0 0% 0%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-muted: 240 5% 64%;
+  --sidebar-accent: 0 0% 12%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 0%;
+}
+
+/* Soft fade/blur where fixed header meets the scrolling pane */
+.scroll-edge-blur {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 10;
+  height: 0.875rem;
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background)) 0%,
+    hsl(var(--background) / 0.65) 45%,
+    transparent 100%
+  );
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+}
+
+/* App-wide scrollbars: slim rounded thumb, transparent track, no arrow buttons.
+   Important: do NOT set scrollbar-width/color on Chromium/WebView2 — those standard
+   properties override ::-webkit-scrollbar-* and restore Windows arrow buttons. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:start:decrement,
+*::-webkit-scrollbar-button:end:increment,
+*::-webkit-scrollbar-button:vertical:start:decrement,
+*::-webkit-scrollbar-button:vertical:end:increment,
+*::-webkit-scrollbar-button:horizontal:start:decrement,
+*::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 0.5rem;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.28);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+
+/* Firefox (no ::-webkit-scrollbar): thin colored thumb, transparent track */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
 }
 
@@ -109,15 +223,8 @@ body,
   inset: 0;
   z-index: 0;
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(14px) saturate(1.15);
-  -webkit-backdrop-filter: blur(14px) saturate(1.15);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.dark .titlebar-drag {
-  background: rgba(15, 23, 42, 0.45);
-  border-bottom-color: rgba(148, 163, 184, 0.12);
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .titlebar-pill {
@@ -128,24 +235,18 @@ body,
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.35rem;
-  width: min(420px, calc(100vw - 220px));
+  /* Use titlebar width (excludes scrollbar); reserve space for theme + window controls */
+  width: min(420px, calc(100% - 168px));
   max-width: 420px;
   height: 28px;
   padding: 0 0.2rem 0 0.75rem;
   overflow: hidden;
   border-radius: 9999px;
-  background: rgb(241, 245, 249);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-  color: hsl(222 16% 12%);
-  transition: width 300ms ease, max-width 300ms ease, background 400ms ease,
-    color 400ms ease, border-color 400ms ease;
-}
-
-.dark .titlebar-pill:not(.titlebar-pill-playing) {
-  background: rgb(30, 41, 59);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: hsl(210 20% 96%);
+  background: hsl(var(--titlebar-pill));
+  border: 1px solid hsl(var(--titlebar-pill-border));
+  box-shadow: 0 1px 2px hsl(var(--titlebar-pill-shadow));
+  color: hsl(var(--titlebar-pill-foreground));
+  transition: width 300ms ease, max-width 300ms ease;
 }
 
 .titlebar-pill-playing {
@@ -347,16 +448,39 @@ body,
   width: 40px;
   height: 40px;
   outline: none;
-  color: hsl(var(--foreground));
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  transition: color 180ms ease, background-color 180ms ease;
 }
 
 .titlebar-button:hover {
-  background: rgba(148, 163, 184, 0.25);
+  background: transparent;
+}
+
+.titlebar-button-theme:hover .titlebar-theme-sun {
+  color: #d4a017;
+}
+
+.titlebar-button-theme:hover .titlebar-theme-moon {
+  color: #e2e8f0;
+}
+
+.titlebar-button-minimize:hover {
+  color: #22c55e;
+}
+
+.titlebar-button-maximize:hover {
+  color: #eab308;
 }
 
 .titlebar-button-close:hover {
-  background: rgba(239, 68, 68, 0.85);
-  color: white;
+  color: #ef4444;
+  background: transparent;
+}
+
+.titlebar-theme-sun,
+.titlebar-theme-moon {
+  transition: color 180ms ease, transform 250ms ease;
 }
 
 .title {
@@ -381,10 +505,17 @@ body,
   animation-iteration-count: infinite;
 }
 
-/* Only transition chrome surfaces — avoid * which staggers every element */
-html.theme-transition,
-html.theme-transition body {
-  transition: background-color 250ms ease, color 250ms ease !important;
+/* Idle EQ: inherit pill text color for contrast on light/dark idle pills */
+.titlebar-pill .mini-eq-bar-idle {
+  background-color: currentColor;
+  opacity: 0.55;
+}
+
+/* Playing EQ: high-contrast bars that stay readable on any album gradient */
+.titlebar-pill-playing .mini-eq-bar {
+  background-color: #f8fafc;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  opacity: 1;
 }
 
 .loader {
@@ -477,6 +608,12 @@ html.theme-transition body {
   -ms-scroll-snap-type: y proximity;
   scroll-snap-type: y proximity;
   border: 2px solid black;
+}
+
+.fakeScreen::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Adjust height for smaller screens */
