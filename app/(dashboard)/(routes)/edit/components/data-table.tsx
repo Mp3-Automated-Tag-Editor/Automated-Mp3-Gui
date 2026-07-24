@@ -26,11 +26,20 @@ import {
 } from "@/components/ui/table";
 
 import { DataTablePagination } from "../components/data-table-pagination";
-import { DataTableToolbar } from "../components/data-table-toolbar";
+import {
+  DataTableToolbar,
+  type ScrapeProgressState,
+} from "../components/data-table-toolbar";
 import { Song } from "../data/schema";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useSessionContext } from "@/components/context/SessionContext/SessionContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { PendingSuggestion } from "../lib/pending-suggestions";
+import {
+  COMPLETION_BADGE,
+  QUERY,
+  type ScrapeMode,
+} from "@/constants";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -38,24 +47,44 @@ interface DataTableProps<TData, TValue> {
   totalSongs: number;
   functions: any;
   directory: string;
-  sessionName: string;
-  overallAccuracy: string;
+  scrapeProgress: ScrapeProgressState;
+  logs: string[];
+  logsOpen: boolean;
+  onToggleLogs: () => void;
+  onStartScrape: (selectedPaths: string[]) => void;
+  onStopScrape: () => void;
+  scrapeMode: ScrapeMode;
+  onScrapeModeChange: (mode: ScrapeMode) => void;
+  pendingByPath: Record<string, PendingSuggestion>;
+  scrapingPaths: Set<string>;
+  defaultIncompleteFilter?: boolean;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable({
   columns,
   data,
   totalSongs,
   functions,
   directory,
-  sessionName,
-  overallAccuracy,
-}: DataTableProps<TData, TValue>) {
+  scrapeProgress,
+  logs,
+  logsOpen,
+  onToggleLogs,
+  onStartScrape,
+  onStopScrape,
+  scrapeMode,
+  onScrapeModeChange,
+  pendingByPath,
+  scrapingPaths,
+  defaultIncompleteFilter = false,
+}: DataTableProps<Song, unknown>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
+    defaultIncompleteFilter
+      ? [{ id: "percentage", value: QUERY.incompleteFilter }]
+      : []
   );
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -79,26 +108,49 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getRowId: (row, index) => row.path || String(row.id) || String(index),
     meta: {
-      handleSongUpdate: (filePath: string, updatedSong: Song) =>
-        functions.updateSong(filePath, updatedSong),
+      handleSongUpdate: (
+        filePath: string,
+        updatedSong: Song,
+        coverImagePath?: string | null
+      ) => functions.updateSong(filePath, updatedSong, coverImagePath),
+      syncSongLocal: (filePath: string, updatedSong: Song) =>
+        functions.syncSongLocal?.(filePath, updatedSong),
+      dismissPending: (path: string) => functions.dismissPending(path),
+      pendingByPath,
+      scrapingPaths,
     },
   });
 
-  const sessionData = useSessionContext();
+  const handleStart = () => {
+    const selected = table
+      .getSelectedRowModel()
+      .rows.map((r) => r.original.path)
+      .filter(Boolean);
+    onStartScrape(selected);
+  };
 
   return (
-    <div className="space-y-4">
-      <DataTableToolbar table={table} directory={directory} />
-      <div className="relative overflow-auto rounded-md border lg:h-[66vh] xl:h-[76vh]">
-        {" "}
-        {/*h-[90vh] sm:h-[85vh] md:h-[80vh] lg:h-[75vh] xl:h-[70vh] 2xl:h-[65vh] 3xl:h-[60vh]*/}
-        <Table>
-          <TableHeader className="sticky top-0 bg-white z-10">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
+    <div className={cn("flex gap-3", logsOpen && "items-stretch")}>
+      <div className="min-w-0 flex-1 space-y-4">
+        <DataTableToolbar
+          table={table}
+          directory={directory}
+          scrapeProgress={scrapeProgress}
+          logsOpen={logsOpen}
+          onToggleLogs={onToggleLogs}
+          onStartScrape={handleStart}
+          onStopScrape={onStopScrape}
+          scrapeMode={scrapeMode}
+          onScrapeModeChange={onScrapeModeChange}
+        />
+        <div className="relative overflow-auto rounded-md border lg:h-[66vh] xl:h-[76vh]">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
                     <TableHead key={header.id} colSpan={header.colSpan}>
                       {header.isPlaceholder
                         ? null
@@ -107,82 +159,111 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                     </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {/* Check Song if it has been saved with current session. If never been saved - Red, If it has been saved before - yellow, with tooltip on hover sharing details from previous scraper, green if succesffuly saved/updated with latest scrape */}
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const rowPath = row.getValue("path");
-                const rowId = row.id;
-
-              // Find the corresponding song in sessionData
-              const song = sessionData.sessionData.find((s: { path: string; }) => s.path === String(rowPath));
-
-              // If the song exists, extract the percentage, otherwise default to 0
-              const percentage = song ? song.percentage : 0;
-                return (
-                  <TableRow
-                    key={rowId}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-gray-100"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {cell.id.includes("_percentage") && sessionName != "" ? (
-                          <div className="flex space-x-2">
-                            {
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => {
+                  const song = row.original;
+                  const pending = !!pendingByPath[song.path];
+                  const scraping = scrapingPaths.has(song.path);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className={cn(
+                        "hover:bg-muted/50",
+                        scraping && "bg-amber-500/5",
+                        pending && "bg-sky-500/5"
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {cell.column.id === "percentage" ? (
+                            <div className="flex items-center gap-1.5">
                               <Badge
                                 className={cn(
                                   "border",
-                                  percentage >= 70
+                                  song.percentage >= COMPLETION_BADGE.high
                                     ? "border-green-500"
-                                    : percentage >= 50 && percentage < 70
-                                    ? "border-yellow-500"
-                                    : percentage >= 30 && percentage < 50
-                                    ? "border-orange-500"
-                                    : percentage < 30
-                                    ? "border-red-500"
-                                    : "border-black"
+                                    : song.percentage >= COMPLETION_BADGE.mid
+                                      ? "border-yellow-500"
+                                      : song.percentage >= COMPLETION_BADGE.low
+                                        ? "border-orange-500"
+                                        : "border-red-500"
                                 )}
                                 variant="outline"
                               >
-                                {percentage}%
+                                {song.percentage}%
                               </Badge>
-                            }
-                          </div>
-                        ) : (
-                          flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                              {pending ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px]"
+                                >
+                                  review
+                                </Badge>
+                              ) : null}
+                              {scraping ? (
+                                <Badge
+                                  variant="outline"
+                                  className="animate-pulse text-[10px]"
+                                >
+                                  scraping
+                                </Badge>
+                              ) : null}
+                            </div>
+                          ) : (
+                            flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <DataTablePagination
+          table={table}
+          totalSongs={totalSongs}
+          overallAccuracy=""
+        />
       </div>
-      <DataTablePagination
-        table={table}
-        totalSongs={totalSongs}
-        overallAccuracy={overallAccuracy}
-      />
+
+      {logsOpen ? (
+        <aside className="flex w-72 shrink-0 flex-col rounded-md border bg-card lg:h-[66vh] xl:h-[76vh]">
+          <div className="border-b px-3 py-2 text-sm font-medium">
+            Scrape logs
+          </div>
+          <ScrollArea className="flex-1 p-3">
+            {logs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No log lines yet.</p>
+            ) : (
+              <ul className="space-y-1.5 font-mono text-[11px] leading-snug text-muted-foreground">
+                {logs.map((line, i) => (
+                  <li key={`${i}-${line.slice(0, 24)}`}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
+        </aside>
+      ) : null}
     </div>
   );
 }

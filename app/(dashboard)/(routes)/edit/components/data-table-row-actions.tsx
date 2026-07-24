@@ -27,17 +27,59 @@ import {
 } from "@/components/ui/sheet";
 
 import { Song, songSchema } from "../data/schema";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { DialogClose } from "@radix-ui/react-dialog";
-import { useSessionContext } from "@/components/context/SessionContext/SessionContext";
+import type { PendingSuggestion } from "../lib/pending-suggestions";
+import { invoke } from "@tauri-apps/api/tauri";
+import { DEFAULT_COVER, SONG_STATUS, TAURI_COMMANDS } from "@/constants";
+
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
   table: any;
+}
+
+function suggestionField(
+  pending: PendingSuggestion | undefined,
+  name: string
+): string {
+  if (!pending) return "";
+  const value = pending[name as keyof PendingSuggestion];
+  if (value === undefined || value === null) return "";
+  return String(value);
+}
+
+/** Resize/compress cover art so Tauri IPC can carry it reliably. */
+async function blobToCompressedJpegBase64(
+  blob: Blob,
+  maxEdge = 1000,
+  quality = 0.85
+): Promise<string> {
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create canvas context");
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  const dataUrl = canvas.toDataURL("image/jpeg", quality);
+  const b64 = dataUrl.split(",")[1];
+  if (!b64) throw new Error("Failed to encode image");
+  return b64;
+}
+
+function coverPreviewSrc(b64: string) {
+  if (!b64) return DEFAULT_COVER;
+  if (b64.startsWith("iVBOR")) return `data:image/png;base64,${b64}`;
+  if (b64.startsWith("R0lGOD")) return `data:image/gif;base64,${b64}`;
+  return `data:image/jpeg;base64,${b64}`;
 }
 
 export function DataTableRowActions<TData>({
@@ -45,23 +87,41 @@ export function DataTableRowActions<TData>({
   table,
 }: DataTableRowActionsProps<TData>) {
   const songDetails = songSchema.parse(row.original);
-  const sessionData = useSessionContext();
+  const pendingByPath =
+    (table.options.meta?.pendingByPath as
+      | Record<string, PendingSuggestion>
+      | undefined) ?? {};
+  const dismissPending = table.options.meta?.dismissPending as
+    | ((path: string) => Promise<void>)
+    | undefined;
+
+  const pending = pendingByPath[songDetails.path];
+  const hasPending = !!pending;
+
   const [formData, setFormData] = useState<Song>(songDetails);
-  const [isOpen, setIsOpen] = useState<boolean>(true);
   const [isDialogSystem, setIsDialogSystem] = useState(false);
   const [openImageDialog, setOpenImageDialog] = useState(false);
   const [imageData, setImageData] = useState<string>(formData.imageSrc);
-  const base64string = "data:image/png;base64," + imageData;
+  /** Optional temp path from Rust URL download (preferred over base64). */
+  const [pendingCoverPath, setPendingCoverPath] = useState<string | null>(
+    null
+  );
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const sessionSongData: Song = sessionData.sessionData.find(
-    (s: { path: string }) => s.path === String(formData.path)
-  );
+  useEffect(() => {
+    setFormData(songDetails);
+    setImageData(songDetails.imageSrc);
+    setPendingCoverPath(null);
+  }, [
+    songDetails.path,
+    songDetails.title,
+    songDetails.artist,
+    songDetails.album,
+  ]);
 
   const handleChange = (e: { target: { name: any; value: any } }) => {
     const { name, value } = e.target;
-
-    console.log("Test: " + name + " " + value);
 
     if (name == "year" || name == "track" || name == "discno") {
       setFormData({
@@ -77,69 +137,132 @@ export function DataTableRowActions<TData>({
     });
   };
 
-  console.log(formData);
-
-  const handleImageChange = async (event: { target: { value: any } }) => {
-    const url = event.target.value;
+  const handleImageChange = async (event: {
+    target: { value: string };
+  }) => {
+    const url = event.target.value.trim();
+    if (!url) return;
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setImageData(reader.result.split(",")[1]);
-        }
-      };
-      reader.readAsDataURL(blob);
+      // Rust download avoids webview CORS failures
+      const [tempPath, b64] = await invoke<[string, string]>(
+        TAURI_COMMANDS.fetchAlbumArtUrl,
+        { url }
+      );
+      setPendingCoverPath(tempPath);
+      setImageData(b64);
     } catch (error) {
       console.error("Error fetching image:", error);
+      toast({
+        title: "Could not load image URL",
+        description: String(error),
+      });
     }
   };
 
-  const handleFileChange = (event: { target: { files: any } }) => {
+  const handleFileChange = async (event: {
+    target: { files: FileList | null };
+  }) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setImageData(reader.result.split(",")[1]);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const b64 = await blobToCompressedJpegBase64(files[0]);
+        setPendingCoverPath(null);
+        setImageData(b64);
+      } catch (error) {
+        console.error("Error reading image:", error);
+        toast({
+          title: "Could not read image file",
+          description: String(error),
+        });
+      }
     }
+  };
+
+  const updateImage = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setFormData((prev) => ({
+      ...prev,
+      imageSrc: imageData,
+    }));
+    setOpenImageDialog(false);
   };
 
   const updateSong = async (e: any) => {
-    //Update Song Request
     e.preventDefault();
-    console.log("Update Song Request: " + formData);
-    const val = await table.options.meta.handleSongUpdate(
-      formData.file,
-      formData
-    );
-    console.log(formData);
+    if (saving) return;
+    setSaving(true);
+    const coverPathAtSave = pendingCoverPath;
+    try {
+      const toSave: Song = {
+        ...formData,
+        imageSrc: imageData || formData.imageSrc,
+        status: SONG_STATUS.saved,
+        sessionName: SONG_STATUS.saved,
+      };
 
-    console.log(val);
+      const val = await table.options.meta.handleSongUpdate(
+        toSave.path,
+        toSave,
+        coverPathAtSave
+      );
+      if (val[0] == false) {
+        toast({
+          title: "Save Failed",
+          description: "Reason: " + val[1],
+        });
+        return;
+      }
+
+      setFormData({ ...toSave, status: SONG_STATUS.saved, sessionName: SONG_STATUS.saved });
+      setPendingCoverPath(null);
+      toast({
+        title: "Save Successful",
+        description: `Successfully Updated Song #${toSave.id} - ${toSave.file}`,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const acceptAllSuggestions = async () => {
+    if (!pending) return;
+    const merged: Song = {
+      ...formData,
+      title: pending.title || formData.title,
+      artist: pending.artist || formData.artist,
+      album: pending.album || formData.album,
+      year: pending.year || formData.year,
+      track: pending.track || formData.track,
+      genre: pending.genre || formData.genre,
+      comments: pending.comments || formData.comments,
+      albumArtist: pending.albumArtist || formData.albumArtist,
+      composer: pending.composer || formData.composer,
+      discno: pending.discno || formData.discno,
+      status: SONG_STATUS.saved,
+      sessionName: SONG_STATUS.saved,
+    };
+    setFormData(merged);
+    const val = await table.options.meta.handleSongUpdate(merged.path, merged);
     if (val[0] == false) {
       toast({
-        title: "Save Failed",
+        title: "Accept Failed",
         description: "Reason: " + val[1],
       });
       return;
     }
-
     toast({
-      title: "Save Successful",
-      description: `Successfully Updated Song #${formData.id} - ${formData.file}`,
+      title: "Suggestions applied",
+      description: `Saved scraped tags for ${merged.file}`,
     });
-    return;
   };
 
-  const updateImage = () => {
-    setFormData({
-      ...formData,
-      imageSrc: imageData,
+  const dismissSuggestions = async () => {
+    if (!pending || !dismissPending) return;
+    await dismissPending(pending.path);
+    toast({
+      title: "Suggestions dismissed",
+      description: `Cleared review for ${pending.file}`,
     });
   };
 
@@ -157,7 +280,7 @@ export function DataTableRowActions<TData>({
         </SheetTrigger>
         <SheetContent
           className={
-            sessionData.sessionName != ""
+            hasPending
               ? "overflow-y-auto p-4 min-w-[780px]"
               : "overflow-y-auto p-4 min-w-[400px]"
           }
@@ -172,16 +295,39 @@ export function DataTableRowActions<TData>({
               <SheetHeader>
                 <SheetTitle>Edit Song Metadata</SheetTitle>
                 <SheetDescription>
-                  {sessionData.sessionName != ""
-                    ? "Make changes to song metadata with scraper data. Click on the buttons nearby to place the suggested data in the text fields, feel free to further edit it."
+                  {hasPending
+                    ? "Review scraped suggestions beside each field. Click a suggestion to apply it, or accept/dismiss all."
                     : "Make changes to song metadata manually."}
+                  {hasPending ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={acceptAllSuggestions}
+                      >
+                        Accept all
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={dismissSuggestions}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  ) : null}
                   <form onSubmit={updateSong}>
                     <div className="grid gap-4 py-4">
                       {[
                         { label: "Title", name: "title", type: "string" },
                         { label: "Artist", name: "artist", type: "string" },
                         { label: "Album", name: "album", type: "string" },
-                        { label: "Album Artist", name: "albumArtist", type: "string" },
+                        {
+                          label: "Album Artist",
+                          name: "albumArtist",
+                          type: "string",
+                        },
                         { label: "Composer", name: "composer", type: "string" },
                         { label: "Year", name: "year", type: "number" },
                         { label: "Track", name: "track", type: "number" },
@@ -190,62 +336,29 @@ export function DataTableRowActions<TData>({
                         { label: "Comments", name: "comments", type: "string" },
                       ].map(({ label, name, type }) => (
                         <MetadataRow
-                          key={name}
+                          key={`${name}-${hasPending ? "p" : "n"}`}
                           label={label}
                           name={name}
                           value={formData[name as keyof Song]}
-                          sessionExists={sessionData.sessionName != ""}
-                          sessionValue={
-                            sessionSongData
-                              ? String(sessionSongData[name as keyof Song])
-                              : ""
-                          }
+                          hasSuggestion={hasPending}
+                          suggestionValue={suggestionField(pending, name)}
                           type={type}
                           onChange={handleChange}
                         />
-                      ))}                      
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="session" className="text-right">
-                          Session
-                        </Label>
-                        <Input
-                          id="username"
-                          name="session"
-                          disabled
-                          value={formData.sessionName}
-                          onChange={handleChange}
-                          className="col-span-3"
-                        />{" "}
-                      </div>
-                      <div className={sessionData.sessionName != "" ? "grid grid-cols-2 place-items-center gap-4" : "place-items-center gap-4"}>
+                      ))}
+                      <div className="place-items-center gap-4">
                         <Image
-                          // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
                           src={
                             formData.imageSrc
-                              ? `data:image/png;base64,${formData.imageSrc}`
-                              : `/def-album-art.png`
+                              ? coverPreviewSrc(formData.imageSrc)
+                              : DEFAULT_COVER
                           }
                           width={300}
                           height={300}
-                          alt="Picture of the author"
+                          alt="Album art"
                           className="border border-black image-blur"
                           onClick={() => setOpenImageDialog(!openImageDialog)}
                         />
-                        {
-                          sessionData.sessionName != "" ? <Image
-                          // src={formData.imageSrc ? base64string : "/public/def-album-art.png"}
-                          src={
-                            sessionSongData && sessionSongData.imageSrc
-                              ? `data:image/png;base64,${sessionSongData.imageSrc}`
-                              : `/def-album-art.png`
-                          }
-                          width={300}
-                          height={300}
-                          alt="Picture of the author"
-                          className="border border-black image-blur"
-                          onClick={() => setOpenImageDialog(!openImageDialog)}
-                        /> : null
-                        }                      
                       </div>
                       <Dialog
                         open={openImageDialog}
@@ -288,8 +401,8 @@ export function DataTableRowActions<TData>({
                               <Image
                                 src={
                                   imageData
-                                    ? base64string
-                                    : `/def-album-art.png`
+                                    ? coverPreviewSrc(imageData)
+                                    : DEFAULT_COVER
                                 }
                                 width={250}
                                 height={250}
@@ -299,7 +412,6 @@ export function DataTableRowActions<TData>({
                             </div>
                           </div>
                           <DialogFooter className="sm:justify-between">
-                            {/* <Button type="button" variant="secondary">Close</Button> */}
                             <div className="flex items-center space-x-2">
                               <Switch
                                 id="mode-switch"
@@ -310,17 +422,17 @@ export function DataTableRowActions<TData>({
                                 {isDialogSystem ? "Image" : "URI"}
                               </Label>
                             </div>
-                            <DialogClose>
-                              <Button type="submit" onClick={updateImage}>
-                                Save
-                              </Button>
-                            </DialogClose>
+                            <Button type="button" onClick={updateImage}>
+                              Save
+                            </Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
 
                       <SheetClose asChild>
-                        <Button type="submit">Save changes</Button>
+                        <Button type="submit" disabled={saving}>
+                          {saving ? "Saving…" : "Save changes"}
+                        </Button>
                       </SheetClose>
                     </div>
                   </form>
@@ -339,17 +451,7 @@ export function DataTableRowActions<TData>({
             </TabsContent>
 
             <TabsContent value="Others">
-              <>
-                {/* <DropdownMenuItem>Make a copy</DropdownMenuItem>
-                <DropdownMenuItem>Favorite</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <span className="text-red-500">Delete
-                  </span>
-                  <DropdownMenuShortcut><span className="text-red-500">⌘⌫
-                  </span></DropdownMenuShortcut>
-                </DropdownMenuItem> */}
-              </>
+              <></>
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -362,8 +464,8 @@ interface MetadataRowProps {
   label: string;
   name: string;
   value: string | number;
-  sessionExists: boolean;
-  sessionValue: string | number;
+  hasSuggestion: boolean;
+  suggestionValue: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type: string;
 }
@@ -372,19 +474,22 @@ const MetadataRow = ({
   label,
   name,
   value,
-  sessionExists,
-  sessionValue,
+  hasSuggestion,
+  suggestionValue,
   onChange,
   type,
 }: MetadataRowProps) => {
-  const [isVisible, setIsVisible] = useState(sessionExists);
+  const [isVisible, setIsVisible] = useState(hasSuggestion);
 
-  const handleSessionValueClick = () => {
-    // Simulate an input change event with the session value
+  useEffect(() => {
+    setIsVisible(hasSuggestion);
+  }, [hasSuggestion]);
+
+  const handleSuggestionClick = () => {
     const event = {
       target: {
         name: name,
-        value: sessionValue
+        value: suggestionValue,
       },
     } as React.ChangeEvent<HTMLInputElement>;
     onChange(event);
@@ -392,29 +497,39 @@ const MetadataRow = ({
   };
 
   return (
-    <div className={isVisible ? "grid grid-cols-8 items-center gap-4" : "grid grid-cols-4 items-center gap-4"}>
+    <div
+      className={
+        isVisible
+          ? "grid grid-cols-8 items-center gap-4"
+          : "grid grid-cols-4 items-center gap-4"
+      }
+    >
       <Label htmlFor={name} className="text-right col-span-1">
         {label}
       </Label>
       <Input
-        type={type == "string" ? "text" : "number"} 
+        type={type == "string" ? "text" : "number"}
         id={name}
         name={name}
         value={value}
         onChange={onChange}
-        className="col-span-3" // Expands on hide
+        className="col-span-3"
       />
       {isVisible ? (
         <span className="col-span-4 flex space-x-1">
           <Button
+            type="button"
             variant="outline"
             className="flex-grow"
-            disabled={!sessionValue}
-            onClick={handleSessionValueClick}
+            disabled={!suggestionValue && suggestionValue !== 0}
+            onClick={handleSuggestionClick}
           >
-            {sessionValue ? sessionValue : "Could Not Retrieve Data :("}
+            {suggestionValue || suggestionValue === 0
+              ? suggestionValue
+              : "Could Not Retrieve Data :("}
           </Button>
           <Button
+            type="button"
             variant="outline"
             className="flex-shrink-0 text-red-500"
             onClick={() => setIsVisible(false)}

@@ -5,11 +5,16 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 
-import { genres, statuses } from "../data/data"
+import { genres, statuses } from "@/constants"
 import { Song } from "../data/schema"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 import { cn } from "@/lib/utils"
+import {
+  COMPLETION_BADGE,
+  INCOMPLETE_PERCENTAGE_MAX,
+  QUERY,
+} from "@/constants"
 
 export const columns: ColumnDef<Song>[] = [
   {
@@ -69,12 +74,18 @@ export const columns: ColumnDef<Song>[] = [
 
       return (
         <div className="flex space-x-2">
-          {<Badge className={cn("border", percentage >= 70 ? "border-green-500" :
-            percentage >= 50 && percentage < 70 ? "border-yellow-500" :
-              percentage >= 30 && percentage < 50 ? 'border-orange-500' :
-                percentage < 30 ? 'border-red-500' : 'border-black')} variant="outline">{percentage}%</Badge>}
+          {<Badge className={cn("border", percentage >= COMPLETION_BADGE.high ? "border-green-500" :
+            percentage >= COMPLETION_BADGE.mid && percentage < COMPLETION_BADGE.high ? "border-yellow-500" :
+              percentage >= COMPLETION_BADGE.low && percentage < COMPLETION_BADGE.mid ? 'border-orange-500' :
+                percentage < COMPLETION_BADGE.low ? 'border-red-500' : 'border-black')} variant="outline">{percentage}%</Badge>}
         </div>
       )
+    },
+    filterFn: (row, id, value) => {
+      if (value === QUERY.incompleteFilter) {
+        return (row.getValue(id) as number) <= INCOMPLETE_PERCENTAGE_MAX
+      }
+      return true
     },
   },
   {
