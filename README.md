@@ -94,17 +94,12 @@ await invoke("read_mp3_tags", { filePath: "/path/to/song.mp3" });
 
 ## 📸 Screenshots
 
-![automp31](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/75e880a5-cdd9-4165-8719-0586c8273bb2)
+<img width="1562" height="900" alt="Screenshot 2026-07-25 020044" src="https://github.com/user-attachments/assets/77a3074b-799f-40a5-9218-ab470510a1c1" />
+<img width="1562" height="900" alt="Screenshot 2026-07-25 020145" src="https://github.com/user-attachments/assets/a36b69e1-2c09-4496-b3b1-81ec32918e30" />
+<img width="1491" height="992" alt="Screenshot 2026-07-25 020247" src="https://github.com/user-attachments/assets/a85a1113-4114-49db-ada2-9d571d26a43d" />
+<img width="1562" height="900" alt="Screenshot 2026-07-25 020811" src="https://github.com/user-attachments/assets/16260b30-2cc7-432f-a938-3fda5352209c" />
+<img width="1811" height="1061" alt="Screenshot 2026-07-25 020915" src="https://github.com/user-attachments/assets/00b77b91-f5e1-4dab-9e6b-d257d7150c1c" />
 
-![mp3_1](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/e625c2ff-1a51-4cdb-b6e2-1fead179efb6)
-
-![mp3_2](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/faa0e671-4a91-469f-9355-bf33cfdee21f)
-
-![image](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/2467301c-57c0-422a-90d5-b487b2cc0ff2)
-
-![WhatsApp Image 2024-01-09 at 00 24 50](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/91d15bad-e3cc-4dd7-8754-6916c8b7b78a)
-
-![mp3_3](https://github.com/Mp3-Automated-Tag-Editor/Automated-Mp3-Gui/assets/70965472/d7c0ae27-febb-4cf5-b08f-a54b89ffc9ba)
 ---
 
 ## ✅ TaskList / Roadmap
