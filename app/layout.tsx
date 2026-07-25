@@ -30,22 +30,22 @@ export default function RootLayout({
       }}
       suppressHydrationWarning
     >
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange={true}
-      >
-        <ConfigsProvider defaultData={DEFAULT_SETTINGS}>
-          <PlayerProvider>
-            <body className={`${inter.className} h-full overflow-hidden`}>
+      <body className={`${inter.className} h-full overflow-hidden`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange={true}
+        >
+          <ConfigsProvider defaultData={DEFAULT_SETTINGS}>
+            <PlayerProvider>
               <TitleBar />
               {children}
               <Toaster />
-            </body>
-          </PlayerProvider>
-        </ConfigsProvider>
-      </ThemeProvider>
+            </PlayerProvider>
+          </ConfigsProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

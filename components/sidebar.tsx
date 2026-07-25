@@ -24,6 +24,13 @@ const navItemBase =
 const navItemActive =
   "bg-sidebar-accent text-sidebar-accent-foreground";
 
+function isRouteActive(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/" || pathname === "/dashboard";
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 const Sidebar = ({
   isSidebarOpen,
   toggleSidebar,
@@ -104,7 +111,7 @@ const Sidebar = ({
               href={route.href}
               className={cn(
                 navItemBase,
-                pathname.includes(route.href) && navItemActive
+                isRouteActive(pathname, route.href) && navItemActive
               )}
             >
               <div className="flex flex-1 items-center">
@@ -126,7 +133,7 @@ const Sidebar = ({
             href={ROUTES.settings}
             className={cn(
               navItemBase,
-              pathname.includes(ROUTES.settings) && navItemActive
+              isRouteActive(pathname, ROUTES.settings) && navItemActive
             )}
           >
             <div className="flex flex-1 items-center">
@@ -146,7 +153,7 @@ const Sidebar = ({
             href={ROUTES.aboutUs}
             className={cn(
               navItemBase,
-              pathname.includes(ROUTES.aboutUs) && navItemActive
+              isRouteActive(pathname, ROUTES.aboutUs) && navItemActive
             )}
           >
             <div className="flex flex-1 items-center">
