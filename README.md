@@ -96,6 +96,7 @@ await invoke("read_mp3_tags", { filePath: "/path/to/song.mp3" });
 
 <img width="1562" height="900" alt="Screenshot 2026-07-25 020044" src="https://github.com/user-attachments/assets/77a3074b-799f-40a5-9218-ab470510a1c1" />
 <img width="1562" height="900" alt="Screenshot 2026-07-25 020145" src="https://github.com/user-attachments/assets/a36b69e1-2c09-4496-b3b1-81ec32918e30" />
+<img width="1602" height="1046" alt="Screenshot 2026-07-25 021755" src="https://github.com/user-attachments/assets/7707c91c-4238-4cc4-8e26-5b660af89cd9" />
 <img width="1491" height="992" alt="Screenshot 2026-07-25 020247" src="https://github.com/user-attachments/assets/a85a1113-4114-49db-ada2-9d571d26a43d" />
 <img width="1562" height="900" alt="Screenshot 2026-07-25 020811" src="https://github.com/user-attachments/assets/16260b30-2cc7-432f-a938-3fda5352209c" />
 <img width="1811" height="1061" alt="Screenshot 2026-07-25 020915" src="https://github.com/user-attachments/assets/00b77b91-f5e1-4dab-9e6b-d257d7150c1c" />
