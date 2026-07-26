@@ -11,7 +11,7 @@
   },
   "package": {
     "productName": "auto-mp3-beta",
-    "version": "2.0.0"
+    "version": "2.0.1-beta"
   },
   "tauri": {
     "allowlist": {
@@ -135,7 +135,7 @@
         "fullscreen": false,
         "height": 720,
         "resizable": true,
-        "title": "Automated Mp3 Tag Editor - v1.0",
+        "title": "auto-mp v2.0.1-beta",
         "width": 1250,
         "visible": false,
         "x": 50,
