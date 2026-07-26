@@ -1,6 +1,6 @@
 {
   "name": "auto-mp3-beta",
-  "version": "2.0.1-beta",
+  "version": "2.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
