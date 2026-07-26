@@ -88,6 +88,8 @@ const MusicPlayer = () => {
     playlists,
     likedTracks,
     isLoading,
+    isScanning,
+    scanProgress,
     error,
     libraryPath: playerLibraryPath,
     loadFolder,
@@ -467,7 +469,7 @@ const MusicPlayer = () => {
   };
 
   const libraryPath = settingsLibraryPath || playerLibraryPath;
-  const emptyLibrary = !isLoading && tracks.length === 0;
+  const emptyLibrary = !isLoading && !isScanning && tracks.length === 0;
   const needsGate =
     !settingsLibraryPath && !playerLibraryPath && emptyLibrary;
 
@@ -500,9 +502,20 @@ const MusicPlayer = () => {
   };
 
   const renderMainContent = () => {
-    if (isLoading) {
+    if (isLoading && tracks.length === 0) {
       return (
         <p className="py-12 text-sm text-muted-foreground">Loading library…</p>
+      );
+    }
+
+    if (isScanning && tracks.length === 0) {
+      return (
+        <p className="py-12 text-sm text-muted-foreground">
+          Indexing library
+          {scanProgress
+            ? ` · ${scanProgress.done}/${scanProgress.total || "…"}`
+            : "…"}
+        </p>
       );
     }
 
@@ -719,6 +732,12 @@ const MusicPlayer = () => {
             title="Songs"
             description={`${tracks.length} tracks${
               libraryPath ? ` from ${libraryPath}` : ""
+            }${
+              isScanning && scanProgress
+                ? ` · indexing ${scanProgress.done}/${
+                    scanProgress.total || "…"
+                  }`
+                : ""
             }`}
             showSort
             sortKey={songSort}

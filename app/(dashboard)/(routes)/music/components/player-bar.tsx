@@ -22,6 +22,7 @@ import {
   formatTime,
   trackCoverSrc,
 } from "@/components/context/PlayerContext/music-utils";
+import { useFullCover } from "@/components/context/PlayerContext/use-full-cover";
 import {
   Popover,
   PopoverContent,
@@ -60,7 +61,7 @@ export function PlayerBar({ onOpenPlayer }: PlayerBarProps) {
     isLiked,
   } = usePlayer();
 
-  const cover = trackCoverSrc(currentTrack);
+  const { src: cover } = useFullCover(currentTrack);
   const title = currentTrack ? displayTitle(currentTrack) : "No track selected";
   const artist = currentTrack
     ? displayArtist(currentTrack)

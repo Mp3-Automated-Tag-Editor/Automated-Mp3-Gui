@@ -2,8 +2,7 @@
 
 import { Pencil } from "lucide-react";
 import { Heading } from "@/components/heading";
-import { z } from "zod";
-import { songSchema, Song } from "../data/schema";
+import { Song } from "../data/schema";
 import { DataTable } from "../components/data-table";
 import { columns } from "../components/columns";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -11,10 +10,9 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import {
   Suspense,
-  useCallback,
   useContext,
   useEffect,
-  useRef,
+  useMemo,
   useState,
 } from "react";
 import Loading from "@/components/loading";
@@ -26,13 +24,10 @@ import {
   type PendingSuggestion,
   upsertPendingSuggestion,
 } from "../lib/pending-suggestions";
-import {
-  getLibraryCache,
-  setLibraryCache,
-} from "../lib/library-cache";
 import { useToast } from "@/components/ui/use-toast";
 import type { ScrapeProgressState } from "../components/data-table-toolbar";
 import { usePlayer } from "@/components/context/PlayerContext";
+import { trackToSongFields } from "@/components/context/PlayerContext/music-utils";
 import {
   CONFIG_KEYS,
   INCOMPLETE_PERCENTAGE_MAX,
@@ -65,31 +60,28 @@ type ScrapeSongResult = {
   errorMessage: string;
 };
 
-const fetchSongs = async (directory: string) => {
-  try {
-    const songs = await invoke(TAURI_COMMANDS.readMusicDirectory, { directory });
-    return z.array(songSchema).parse(songs);
-  } catch (error) {
-    console.error("Failed to fetch Songs:", error);
-    return [];
-  }
-};
-
 const EditPage = () => {
   const libraryPath = useLibraryPath();
-  const libraryCache = getLibraryCache();
-  const cached =
-    libraryPath && libraryCache?.directory === libraryPath
-      ? libraryCache
-      : null;
+  const {
+    tracks,
+    isLoading: libraryLoading,
+    isScanning,
+    scanProgress,
+    loadFolder,
+    upsertTrackMetadata,
+  } = usePlayer();
 
-  const [songs, setSongs] = useState<Song[]>(cached?.songs ?? []);
-  const [loading, setLoading] = useState(!cached);
+  // Shared library store — no independent full-directory IPC reload
+  const songs: Song[] = useMemo(
+    () => tracks.map((t) => trackToSongFields(t) as Song),
+    [tracks]
+  );
+
   const [logsOpen, setLogsOpen] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [pendingByPath, setPendingByPath] = useState<
     Record<string, PendingSuggestion>
-  >(cached?.pending ?? {});
+  >({});
   const [scrapingPaths, setScrapingPaths] = useState<Set<string>>(new Set());
   const [scrapeProgress, setScrapeProgress] = useState<ScrapeProgressState>({
     running: false,
@@ -101,7 +93,6 @@ const EditPage = () => {
   const router = useRouter();
   const { configs, addConfig } = useContext(ConfigContext);
   const { toast } = useToast();
-  const { upsertTrackMetadata } = usePlayer();
   const incomplete = searchParams.get("filter") === QUERY.incompleteFilter;
 
   const [scrapeMode, setScrapeMode] = useState<ScrapeMode>(
@@ -109,10 +100,6 @@ const EditPage = () => {
       ? SCRAPE_MODE.apply
       : SCRAPE_MODE.review
   );
-
-  const loadRef = useRef<
-    (dir: string, opts?: { silent?: boolean }) => Promise<void>
-  >(async () => {});
 
   useEffect(() => {
     setScrapeMode(
@@ -122,37 +109,10 @@ const EditPage = () => {
     );
   }, [configs?.[CONFIG_KEYS.scrapeMode]]);
 
-  const load = useCallback(async (dir: string, opts?: { silent?: boolean }) => {
-    const cache = getLibraryCache();
-    const hasCache = cache?.directory === dir && cache.songs.length > 0;
-    const silent = opts?.silent === true || hasCache;
-
-    if (hasCache && cache) {
-      setSongs(cache.songs);
-      setPendingByPath(cache.pending);
-      setLoading(false);
-    } else if (!silent) {
-      setLoading(true);
-    }
-
-    const fetched = await fetchSongs(dir);
-    const pending = await loadPendingSuggestions();
-    setLibraryCache({ directory: dir, songs: fetched, pending });
-    setSongs(fetched);
-    setPendingByPath(pending);
-    setLoading(false);
-  }, []);
-
-  loadRef.current = load;
-
   useEffect(() => {
-    if (!libraryPath) return;
-    load(libraryPath, {
-      silent: getLibraryCache()?.directory === libraryPath,
-    });
-  }, [libraryPath, load]);
+    void loadPendingSuggestions().then(setPendingByPath);
+  }, [libraryPath]);
 
-  // Listen once — avoid duplicate handlers from remount / async cleanup races.
   useEffect(() => {
     let disposed = false;
     const cleanups: Array<() => void> = [];
@@ -163,100 +123,104 @@ const EditPage = () => {
         return;
       }
       cleanups.push(unlisten);
-      if (disposed) {
-        while (cleanups.length) cleanups.pop()?.();
-      }
     };
 
     (async () => {
       track(
         await listen<{ songName?: string }>(TAURI_EVENTS.progressStart, (e) => {
           const name = e.payload?.songName || "song";
-          setLogs((prev) => [`▶ Scraping ${name}`, ...prev].slice(0, STATS.scrapeLogCap));
+          setLogs((prev) =>
+            [`▶ Scraping ${name}`, ...prev].slice(0, STATS.scrapeLogCap)
+          );
         })
       );
       track(
         await listen<{ songName?: string }>(TAURI_EVENTS.progressEnd, (e) => {
           const name = e.payload?.songName || "song";
-          setLogs((prev) => [`✓ Done ${name}`, ...prev].slice(0, STATS.scrapeLogCap));
+          setLogs((prev) =>
+            [`✓ Done ${name}`, ...prev].slice(0, STATS.scrapeLogCap)
+          );
           setScrapeProgress((p) => ({
             ...p,
-            done: Math.min(p.total, p.done + 1),
+            done: Math.min(p.done + 1, p.total || p.done + 1),
           }));
         })
       );
       track(
-        await listen<ScrapeSongResult>(TAURI_EVENTS.scrapeSongResult, async (e) => {
-          const r = e.payload;
-          if (!r?.path) return;
-          setScrapingPaths((prev) => {
-            const next = new Set(prev);
-            next.delete(r.path);
-            return next;
-          });
-          if (!r.success) {
-            setLogs((prev) =>
-              [`✗ ${r.file}: ${r.errorMessage || "failed"}`, ...prev].slice(
-                0,
-                STATS.scrapeLogCap
-              )
-            );
-            return;
-          }
-          if (r.applied) {
-            setSongs((prev) => {
-              const next = prev.map((s) =>
-                s.path === r.path
-                  ? {
-                      ...s,
-                      title: r.title || s.title,
-                      artist: r.artist || s.artist,
-                      album: r.album || s.album,
-                      year: r.year || s.year,
-                      track: r.track || s.track,
-                      genre: r.genre || s.genre,
-                      comments: r.comments || s.comments,
-                      albumArtist: r.albumArtist || s.albumArtist,
-                      composer: r.composer || s.composer,
-                      discno: r.discno || s.discno,
-                      status: SONG_STATUS.saved,
-                      sessionName: SONG_STATUS.saved,
-                    }
-                  : s
-              );
-              if (getLibraryCache()) {
-                setLibraryCache({ ...getLibraryCache()!, songs: next });
-              }
+        await listen<ScrapeSongResult>(
+          TAURI_EVENTS.scrapeSongResult,
+          async (e) => {
+            const r = e.payload;
+            if (!r?.path) return;
+            setScrapingPaths((prev) => {
+              const next = new Set(prev);
+              next.delete(r.path);
               return next;
             });
-            setLogs((prev) =>
-              [`✓ Applied tags: ${r.file}`, ...prev].slice(0, STATS.scrapeLogCap)
-            );
-          } else {
-            const suggestion: PendingSuggestion = {
-              path: r.path,
-              file: r.file,
-              title: r.title,
-              artist: r.artist,
-              album: r.album,
-              year: r.year,
-              track: r.track,
-              genre: r.genre,
-              comments: r.comments,
-              albumArtist: r.albumArtist,
-              composer: r.composer,
-              discno: r.discno,
-            };
-            const map = await upsertPendingSuggestion(suggestion);
-            setPendingByPath(map);
-            if (getLibraryCache()) {
-              setLibraryCache({ ...getLibraryCache()!, pending: map });
+            if (!r.success) {
+              setLogs((prev) =>
+                [
+                  `✗ ${r.file || r.path}: ${r.errorMessage || "failed"}`,
+                  ...prev,
+                ].slice(0, STATS.scrapeLogCap)
+              );
+              return;
             }
-            setLogs((prev) =>
-              [`⚑ Review saved: ${r.file}`, ...prev].slice(0, STATS.scrapeLogCap)
-            );
+            if (r.applied) {
+              upsertTrackMetadata({
+                path: r.path,
+                title: r.title,
+                artist: r.artist,
+                album: r.album,
+                year: r.year,
+                track: r.track,
+                genre: r.genre,
+                comments: r.comments,
+                albumArtist: r.albumArtist,
+                composer: r.composer,
+                discno: r.discno,
+                status: SONG_STATUS.edit,
+              });
+              try {
+                const refreshed = await invoke<Record<string, unknown>>(
+                  TAURI_COMMANDS.refreshLibraryTrack,
+                  { path: r.path, directory: libraryPath }
+                );
+                if (refreshed?.path) {
+                  upsertTrackMetadata(refreshed as any);
+                }
+              } catch {
+                // in-memory patch above is enough for UI
+              }
+              setLogs((prev) =>
+                [`✓ Applied: ${r.file}`, ...prev].slice(0, STATS.scrapeLogCap)
+              );
+            } else {
+              const suggestion: PendingSuggestion = {
+                path: r.path,
+                file: r.file,
+                title: r.title,
+                artist: r.artist,
+                album: r.album,
+                year: r.year,
+                track: r.track,
+                genre: r.genre,
+                comments: r.comments,
+                albumArtist: r.albumArtist,
+                composer: r.composer,
+                discno: r.discno,
+              };
+              const map = await upsertPendingSuggestion(suggestion);
+              setPendingByPath(map);
+              setLogs((prev) =>
+                [`⚑ Review saved: ${r.file}`, ...prev].slice(
+                  0,
+                  STATS.scrapeLogCap
+                )
+              );
+            }
           }
-        })
+        )
       );
       track(
         await listen(TAURI_EVENTS.scrapeResult, () => {
@@ -265,9 +229,6 @@ const EditPage = () => {
           setLogs((prev) =>
             [`— Scrape batch finished`, ...prev].slice(0, STATS.scrapeLogCap)
           );
-          // Background refresh only — keep the table visible
-          const dir = getLibraryCache()?.directory;
-          if (dir) void loadRef.current(dir, { silent: true });
         })
       );
       track(
@@ -286,7 +247,7 @@ const EditPage = () => {
       disposed = true;
       while (cleanups.length) cleanups.pop()?.();
     };
-  }, []);
+  }, [libraryPath, upsertTrackMetadata]);
 
   async function updateSong(
     filePath: string,
@@ -306,17 +267,6 @@ const EditPage = () => {
     if (val[0] == false) {
       return val;
     }
-    setSongs((prevSongs) => {
-      const next = prevSongs.map((song) =>
-        song.path === toSave.path || song.path === filePath
-          ? { ...song, ...toSave }
-          : song
-      );
-      if (getLibraryCache()) {
-        setLibraryCache({ ...getLibraryCache()!, songs: next });
-      }
-      return next;
-    });
     upsertTrackMetadata({
       path: toSave.path || filePath,
       title: toSave.title,
@@ -332,27 +282,28 @@ const EditPage = () => {
       imageSrc: toSave.imageSrc,
       status: toSave.status,
       sessionName: toSave.sessionName,
+      percentage: toSave.percentage,
     });
+    try {
+      const refreshed = await invoke<Record<string, unknown>>(
+        TAURI_COMMANDS.refreshLibraryTrack,
+        {
+          path: toSave.path || filePath,
+          directory: libraryPath,
+        }
+      );
+      if (refreshed?.path) {
+        upsertTrackMetadata(refreshed as any);
+      }
+    } catch {
+      // ignore
+    }
     const map = await clearPendingSuggestion(toSave.path || filePath);
     setPendingByPath(map);
-    if (getLibraryCache()) {
-      setLibraryCache({ ...getLibraryCache()!, pending: map });
-    }
     return val;
   }
 
   function syncSongLocal(filePath: string, updatedSong: Song) {
-    setSongs((prevSongs) => {
-      const next = prevSongs.map((song) =>
-        song.path === updatedSong.path || song.path === filePath
-          ? { ...song, ...updatedSong }
-          : song
-      );
-      if (getLibraryCache()) {
-        setLibraryCache({ ...getLibraryCache()!, songs: next });
-      }
-      return next;
-    });
     upsertTrackMetadata({
       ...updatedSong,
       path: updatedSong.path || filePath,
@@ -362,9 +313,6 @@ const EditPage = () => {
   async function dismissPending(path: string) {
     const map = await clearPendingSuggestion(path);
     setPendingByPath(map);
-    if (getLibraryCache()) {
-      setLibraryCache({ ...getLibraryCache()!, pending: map });
-    }
   }
 
   const onStartScrape = async (selectedPaths: string[]) => {
@@ -412,7 +360,9 @@ const EditPage = () => {
   const onStopScrape = async () => {
     try {
       await invoke(TAURI_COMMANDS.stopScrapeProcess);
-      setLogs((prev) => [`— Stop requested`, ...prev].slice(0, STATS.scrapeLogCap));
+      setLogs((prev) =>
+        [`— Stop requested`, ...prev].slice(0, STATS.scrapeLogCap)
+      );
     } catch {
       // ignore
     }
@@ -441,7 +391,7 @@ const EditPage = () => {
                   ? `${ROUTES.editPage}?filter=${QUERY.incompleteFilter}`
                   : ROUTES.editPage
               );
-              load(path);
+              void loadFolder(path);
             }}
           />
         </div>
@@ -449,9 +399,12 @@ const EditPage = () => {
     );
   }
 
+  const showBlockingLoad =
+    libraryLoading && songs.length === 0 && !isScanning;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {loading && songs.length === 0 ? (
+      {showBlockingLoad ? (
         <Loading msg="Loading your Music Database..." />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -460,6 +413,12 @@ const EditPage = () => {
             description={`Library: ${libraryPath}${
               incomplete
                 ? ` · showing ≤${INCOMPLETE_PERCENTAGE_MAX}% complete`
+                : ""
+            }${
+              isScanning && scanProgress
+                ? ` · indexing ${scanProgress.done}/${
+                    scanProgress.total || "…"
+                  }`
                 : ""
             }`}
             icon={Pencil}

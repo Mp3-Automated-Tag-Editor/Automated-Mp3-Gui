@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import { Heart } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -33,6 +33,8 @@ import {
   sortSongs,
   type SongSortKey,
 } from "./library-sort";
+
+const ROW_HEIGHT = 52;
 
 type SongListProps = {
   tracks: Track[];
@@ -83,6 +85,7 @@ export function SongList({
   const [pendingTrack, setPendingTrack] = useState<Track | null>(null);
   const [internalSort, setInternalSort] = useState<SongSortKey>("title-asc");
   const sortKey = controlledSort ?? internalSort;
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
@@ -95,6 +98,13 @@ export function SongList({
         });
     return sortSongs(list, sortKey);
   }, [tracks, filterQuery, sortKey]);
+
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+  });
 
   const handleSortChange = (value: string) => {
     const next = value as SongSortKey;
@@ -138,146 +148,157 @@ export function SongList({
           fillHeight ? "flex-1" : "h-[28rem] sm:h-[30rem]"
         )}
       >
-        <ScrollArea className="h-full">
+        <div ref={parentRef} className="h-full overflow-auto">
           {filtered.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground sm:p-6">
               {emptyMessage}
             </p>
           ) : (
-            <div className="divide-y">
-              {filtered.map((track) => {
+            <div
+              className="relative w-full"
+              style={{ height: `${virtualizer.getTotalSize()}px` }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const track = filtered[virtualRow.index];
                 const active = currentTrack?.path === track.path;
                 const liked = isLiked(track.path);
                 return (
-                  <ContextMenu key={track.path}>
-                    <ContextMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          "flex items-center gap-2 px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2 hover:bg-accent/60",
-                          active && "bg-accent"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-3"
-                          onClick={() => playTrack(track, tracks)}
+                  <div
+                    key={track.path}
+                    className="absolute left-0 top-0 w-full border-b"
+                    style={{
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className={cn(
+                            "flex h-full items-center gap-2 px-2 sm:gap-3 sm:px-3 hover:bg-accent/60",
+                            active && "bg-accent"
+                          )}
                         >
-                          <Image
-                            src={trackCoverSrc(track)}
-                            alt=""
-                            width={40}
-                            height={40}
-                            unoptimized
-                            className="h-9 w-9 shrink-0 rounded object-cover sm:h-10 sm:w-10"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                              {displayTitle(track)}
-                              {active && isPlaying ? " · Playing" : ""}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {displayArtist(track)} — {displayAlbum(track)}
-                            </p>
-                          </span>
-                        </button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0"
-                          onClick={() => toggleLike(track)}
-                          title="Like"
-                        >
-                          <Heart
-                            className={cn(
-                              "h-4 w-4",
-                              liked && "fill-red-500 text-red-500"
-                            )}
-                          />
-                        </Button>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="w-52">
-                      <ContextMenuItem
-                        onClick={() => {
-                          toggleLike(track);
-                          toast({
-                            title: liked
-                              ? "Removed from Liked Songs"
-                              : "Added to Liked Songs",
-                          });
-                        }}
-                      >
-                        {liked ? "Unlike" : "Like"}
-                      </ContextMenuItem>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger>
-                          Add to Playlist
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48">
-                          <ContextMenuItem
-                            onClick={() => {
-                              setPendingTrack(track);
-                              setPlaylistDialogOpen(true);
-                            }}
+                          <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-3"
+                            onClick={() => playTrack(track, tracks)}
                           >
-                            <PlusCircledIcon className="mr-2 h-4 w-4" />
-                            New Playlist
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          {playlists.map((playlist) => (
+                            <Image
+                              src={trackCoverSrc(track)}
+                              alt=""
+                              width={40}
+                              height={40}
+                              unoptimized
+                              className="h-9 w-9 shrink-0 rounded object-cover sm:h-10 sm:w-10"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">
+                                {displayTitle(track)}
+                                {active && isPlaying ? " · Playing" : ""}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {displayArtist(track)} — {displayAlbum(track)}
+                              </p>
+                            </span>
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => toggleLike(track)}
+                            title="Like"
+                          >
+                            <Heart
+                              className={cn(
+                                "h-4 w-4",
+                                liked && "fill-red-500 text-red-500"
+                              )}
+                            />
+                          </Button>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-52">
+                        <ContextMenuItem
+                          onClick={() => {
+                            toggleLike(track);
+                            toast({
+                              title: liked
+                                ? "Removed from Liked Songs"
+                                : "Added to Liked Songs",
+                            });
+                          }}
+                        >
+                          {liked ? "Unlike" : "Like"}
+                        </ContextMenuItem>
+                        <ContextMenuSub>
+                          <ContextMenuSubTrigger>
+                            Add to Playlist
+                          </ContextMenuSubTrigger>
+                          <ContextMenuSubContent className="w-48">
                             <ContextMenuItem
-                              key={playlist.id}
                               onClick={() => {
-                                addToPlaylist(playlist.id, [track.path]);
-                                toast({
-                                  title: "Added to playlist",
-                                  description: playlist.name,
-                                });
+                                setPendingTrack(track);
+                                setPlaylistDialogOpen(true);
                               }}
                             >
-                              {playlist.name}
+                              <PlusCircledIcon className="mr-2 h-4 w-4" />
+                              New Playlist
                             </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem onClick={() => playNext(track)}>
-                        Play Next
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => playLater(track)}>
-                        Add to Queue
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        onClick={() =>
-                          onOpenAlbum?.(
-                            displayAlbum(track),
-                            displayArtist(track)
-                          )
-                        }
-                      >
-                        Go to Album
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => onOpenArtist?.(displayArtist(track))}
-                      >
-                        Go to Artist
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
+                            <ContextMenuSeparator />
+                            {playlists.map((playlist) => (
+                              <ContextMenuItem
+                                key={playlist.id}
+                                onClick={() => {
+                                  addToPlaylist(playlist.id, [track.path]);
+                                  toast({
+                                    title: "Added to playlist",
+                                    description: playlist.name,
+                                  });
+                                }}
+                              >
+                                {playlist.name}
+                              </ContextMenuItem>
+                            ))}
+                          </ContextMenuSubContent>
+                        </ContextMenuSub>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem onClick={() => playNext(track)}>
+                          Play Next
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => playLater(track)}>
+                          Add to Queue
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onClick={() =>
+                            onOpenAlbum?.(
+                              displayAlbum(track),
+                              displayArtist(track)
+                            )
+                          }
+                        >
+                          Go to Album
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={() => onOpenArtist?.(displayArtist(track))}
+                        >
+                          Go to Artist
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  </div>
                 );
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       <CreatePlaylistDialog
         open={playlistDialogOpen}
         onOpenChange={setPlaylistDialogOpen}
-        defaultName={
-          pendingTrack ? displayAlbum(pendingTrack) : ""
-        }
+        defaultName={pendingTrack ? displayAlbum(pendingTrack) : ""}
         onConfirm={(name) => {
           if (!pendingTrack) return;
           createPlaylist(name, [pendingTrack.path]);

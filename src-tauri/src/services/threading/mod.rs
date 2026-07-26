@@ -191,8 +191,6 @@ fn make_api_call<R: Runtime>(
 
     TOTAL_FILES.fetch_add(1, Ordering::Relaxed);
 
-    thread::sleep(Duration::from_secs(2));
-
     // Acquire a database connection from the pool only when persisting sessions
     let db_conn = if persist_session {
         Some(
@@ -207,8 +205,7 @@ fn make_api_call<R: Runtime>(
     };
 
     info!("Request from {}, thread {}", endpoint, i);
-    let mut overall_accuracy: f32 = 0.0;
-    // let mut accuracy_guard = OVERALL_ACCURACY.lock().unwrap();
+    let overall_accuracy: f32;
 
     let data = json!({
         "searchParams": {
@@ -222,60 +219,87 @@ fn make_api_call<R: Runtime>(
         "useCache": settings_data.use_cache,
     });
     let data_string = serde_json::to_string(&data).unwrap();
-    match client.post(&req_url).body(data_string).send() {
-        Ok(response) => {
-            if response.status().is_success() {
-                let _code: &u16 = &response.status().as_u16() as &u16;
-                info!("Successful response from {}, thread {}", endpoint, i);
 
-                let api_response: ApiResponse =
-                    match serde_json::from_str(response.text().unwrap().as_str()) {
-                        Ok(response) => response,
-                        Err(err) => {
-                            error!("Unsuccessful Serialization: {:?}", err);
-                            window
-                                .emit(
-                                    "error_env",
-                                    Packet {
-                                        id: id,
-                                        status: models::Status::FAILED,
-                                        song_name: endpoint,
-                                        status_code: 400,
-                                        accuracy: 0.0,
-                                        error_message: format!("Serialization failed: {:?}", err)
-                                            .as_str(),
-                                    },
-                                )
-                                .unwrap();
-                            return;
+    let cache_key = crate::services::scrape_cache::cache_key(path, &settings_data);
+    let cached_value = crate::services::scrape_cache::get_cached_response(path, &settings_data);
+
+    let api_response_result: Result<ApiResponse, String> = if let Some(value) = cached_value {
+        info!("scrape cache hit for {}", endpoint);
+        serde_json::from_value(value).map_err(|e| format!("Cached scrape deserialize: {e}"))
+    } else {
+        // Deduplicate in-flight requests for the same key
+        if !crate::services::scrape_cache::try_begin_inflight(&cache_key) {
+            thread::sleep(Duration::from_millis(150));
+            if let Some(value) =
+                crate::services::scrape_cache::get_cached_response(path, &settings_data)
+            {
+                info!("scrape cache hit after wait for {}", endpoint);
+                match serde_json::from_value(value) {
+                    Ok(r) => Ok(r),
+                    Err(e) => Err(format!("Cached scrape deserialize: {e}")),
+                }
+            } else {
+                Err("Duplicate scrape in flight; no cache yet".to_string())
+            }
+        } else {
+            // Light jitter for remote rate limits (was a fixed 2s sleep)
+            thread::sleep(Duration::from_millis(250));
+            let http_result = client.post(&req_url).body(data_string).send();
+            let parsed = match http_result {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        match response.text() {
+                            Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                                Ok(value) => {
+                                    crate::services::scrape_cache::put_cached_response(
+                                        path,
+                                        &settings_data,
+                                        &value,
+                                    );
+                                    serde_json::from_value::<ApiResponse>(value)
+                                        .map_err(|e| format!("Serialization failed: {e}"))
+                                }
+                                Err(err) => Err(format!("Serialization failed: {err:?}")),
+                            },
+                            Err(err) => Err(format!("Read body failed: {err}")),
                         }
-                    };
-
-                overall_accuracy = format!(
-                    "{:.2}",
-                    (api_response.result.calls.successful_queries as f32)
-                        / (api_response.result.calls.total_queries) as f32
-                        * 100.0
-                )
-                .parse()
-                .unwrap();
-
-                PROCESSED_FILES.fetch_add(1, Ordering::Relaxed);
-                let _ = match OVERALL_ACCURACY.lock() {
-                    Ok(mut accuracy_guard) => {
-                        *accuracy_guard += overall_accuracy;
+                    } else {
+                        Err(format!("HTTP {}", response.status()))
                     }
-                    Err(poisoned) => {
-                        error!("Mutex poisoned: {:?}", poisoned);
-                        let mut accuracy_guard = poisoned.into_inner();
-                        *accuracy_guard += overall_accuracy;
-                    }
-                };
+                }
+                Err(err) => Err(format!("{err} (url: {req_url})")),
+            };
+            crate::services::scrape_cache::end_inflight(&cache_key);
+            parsed
+        }
+    };
 
-                if persist_session {
-                    if let Some(ref db_conn) = db_conn {
-                        let query = format!(
-                            "INSERT INTO {} (
+    match api_response_result {
+        Ok(api_response) => {
+            info!("Successful scrape response for {}, thread {}", endpoint, i);
+
+            overall_accuracy = {
+                let total_q = api_response.result.calls.total_queries.max(1) as f32;
+                let ok_q = api_response.result.calls.successful_queries as f32;
+                ((ok_q / total_q) * 100.0 * 100.0).round() / 100.0
+            };
+
+            PROCESSED_FILES.fetch_add(1, Ordering::Relaxed);
+            let _ = match OVERALL_ACCURACY.lock() {
+                Ok(mut accuracy_guard) => {
+                    *accuracy_guard += overall_accuracy;
+                }
+                Err(poisoned) => {
+                    error!("Mutex poisoned: {:?}", poisoned);
+                    let mut accuracy_guard = poisoned.into_inner();
+                    *accuracy_guard += overall_accuracy;
+                }
+            };
+
+            if persist_session {
+                if let Some(ref db_conn) = db_conn {
+                    let query = format!(
+                        "INSERT INTO {} (
                         file_name, 
                         path, 
                         directory,
@@ -298,124 +322,102 @@ fn make_api_call<R: Runtime>(
                         album_art,
                         sessionName
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
-                            db::latest_session().unwrap()
-                        );
+                        db::latest_session().unwrap()
+                    );
 
-                        match db_conn.execute(
-                            &query,
-                            params![
-                                endpoint,
-                                path,
-                                directory,
-                                api_response.result.title,
-                                api_response.result.artist,
-                                api_response.result.data.album.value,
-                                api_response.result.data.year.value,
-                                api_response.result.data.track.value,
-                                api_response.result.data.genre.value,
-                                api_response.result.data.comments.value,
-                                api_response.result.data.album_artist.value,
-                                api_response.result.data.composer.value,
-                                api_response.result.data.discno.value,
-                                api_response.result.calls.successful_mechanism_calls,
-                                api_response.result.calls.successful_mechanism_calls,
-                                api_response.result.calls.successful_queries,
-                                api_response.result.calls.total_mechanism_calls,
-                                api_response.result.calls.total_mechanism_calls,
-                                api_response.result.calls.total_queries,
-                                path,
-                                LATEST_SESSION.as_str()
-                            ],
-                        ) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                error!("Error inserting data into the database: {:?}", err);
-                                return;
+                    match db_conn.execute(
+                        &query,
+                        params![
+                            endpoint,
+                            path,
+                            directory,
+                            api_response.result.title,
+                            api_response.result.artist,
+                            api_response.result.data.album.value,
+                            api_response.result.data.year.value,
+                            api_response.result.data.track.value,
+                            api_response.result.data.genre.value,
+                            api_response.result.data.comments.value,
+                            api_response.result.data.album_artist.value,
+                            api_response.result.data.composer.value,
+                            api_response.result.data.discno.value,
+                            api_response.result.calls.successful_mechanism_calls,
+                            api_response.result.calls.successful_mechanism_calls,
+                            api_response.result.calls.successful_queries,
+                            api_response.result.calls.total_mechanism_calls,
+                            api_response.result.calls.total_mechanism_calls,
+                            api_response.result.calls.total_queries,
+                            path,
+                            LATEST_SESSION.as_str()
+                        ],
+                    ) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error!("Error inserting data into the database: {:?}", err);
+                            return;
+                        }
+                    }
+                    info!("Inserted data into the database");
+                }
+            } else {
+                let mut applied = false;
+                if apply {
+                    let song = models::EditViewSongMetadata {
+                        id: id.to_string(),
+                        file: endpoint.to_string(),
+                        path: path.to_string(),
+                        artist: api_response.result.artist.clone(),
+                        title: api_response.result.title.clone(),
+                        album: api_response.result.data.album.value.clone(),
+                        year: api_response.result.data.year.value.max(0) as u32,
+                        track: api_response.result.data.track.value.max(0) as u32,
+                        genre: api_response.result.data.genre.value.clone(),
+                        comments: api_response.result.data.comments.value.clone(),
+                        album_artist: api_response.result.data.album_artist.value.clone(),
+                        composer: api_response.result.data.composer.value.clone(),
+                        discno: api_response.result.data.discno.value.max(0) as u32,
+                        image_src: String::new(),
+                        percentage: 0,
+                        status: "EDIT".to_string(),
+                        session_name: "None".to_string(),
+                    };
+                    match crate::services::edit::edit_song_metadata(song, None) {
+                        Ok(_) => {
+                            applied = true;
+                            if let Err(e) =
+                                crate::services::library::refresh_track(path, Some(directory))
+                            {
+                                error!("library refresh after scrape apply failed: {e}");
                             }
                         }
-                        info!("Inserted data into the database");
+                        Err(e) => error!("Failed to apply scraped tags: {}", e),
                     }
-                } else {
-                    let mut applied = false;
-                    if apply {
-                        let song = models::EditViewSongMetadata {
-                            id: id.to_string(),
-                            file: endpoint.to_string(),
-                            path: path.to_string(),
-                            artist: api_response.result.artist.clone(),
-                            title: api_response.result.title.clone(),
-                            album: api_response.result.data.album.value.clone(),
-                            year: api_response.result.data.year.value.max(0) as u32,
-                            track: api_response.result.data.track.value.max(0) as u32,
-                            genre: api_response.result.data.genre.value.clone(),
-                            comments: api_response.result.data.comments.value.clone(),
-                            album_artist: api_response.result.data.album_artist.value.clone(),
-                            composer: api_response.result.data.composer.value.clone(),
-                            discno: api_response.result.data.discno.value.max(0) as u32,
-                            image_src: String::new(),
-                            percentage: 0,
-                            status: "EDIT".to_string(),
-                            session_name: "None".to_string(),
-                        };
-                        match crate::services::edit::edit_song_metadata(song, None) {
-                            Ok(_) => applied = true,
-                            Err(e) => error!("Failed to apply scraped tags: {}", e),
-                        }
-                    }
-
-                    let _ = window.emit(
-                        "scrape_song_result",
-                        models::ScrapeSongResult {
-                            path: path.to_string(),
-                            file: endpoint.to_string(),
-                            title: api_response.result.title.clone(),
-                            artist: api_response.result.artist.clone(),
-                            album: api_response.result.data.album.value.clone(),
-                            year: api_response.result.data.year.value.max(0) as u32,
-                            track: api_response.result.data.track.value.max(0) as u32,
-                            genre: api_response.result.data.genre.value.clone(),
-                            comments: api_response.result.data.comments.value.clone(),
-                            album_artist: api_response.result.data.album_artist.value.clone(),
-                            composer: api_response.result.data.composer.value.clone(),
-                            discno: api_response.result.data.discno.value.max(0) as u32,
-                            accuracy: overall_accuracy,
-                            applied,
-                            success: true,
-                            error_message: String::new(),
-                        },
-                    );
                 }
 
-                info!("Data Accuracy: {}", overall_accuracy);
-            } else {
-                error!(
-                    "Unsuccessful response from {}, thread {}: {:?}",
-                    endpoint, i, response
+                let _ = window.emit(
+                    "scrape_song_result",
+                    models::ScrapeSongResult {
+                        path: path.to_string(),
+                        file: endpoint.to_string(),
+                        title: api_response.result.title.clone(),
+                        artist: api_response.result.artist.clone(),
+                        album: api_response.result.data.album.value.clone(),
+                        year: api_response.result.data.year.value.max(0) as u32,
+                        track: api_response.result.data.track.value.max(0) as u32,
+                        genre: api_response.result.data.genre.value.clone(),
+                        comments: api_response.result.data.comments.value.clone(),
+                        album_artist: api_response.result.data.album_artist.value.clone(),
+                        composer: api_response.result.data.composer.value.clone(),
+                        discno: api_response.result.data.discno.value.max(0) as u32,
+                        accuracy: overall_accuracy,
+                        applied,
+                        success: true,
+                        error_message: String::new(),
+                    },
                 );
-                if !persist_session {
-                    let _ = window.emit(
-                        "scrape_song_result",
-                        models::ScrapeSongResult {
-                            path: path.to_string(),
-                            file: endpoint.to_string(),
-                            title: String::new(),
-                            artist: String::new(),
-                            album: String::new(),
-                            year: 0,
-                            track: 0,
-                            genre: String::new(),
-                            comments: String::new(),
-                            album_artist: String::new(),
-                            composer: String::new(),
-                            discno: 0,
-                            accuracy: 0.0,
-                            applied: false,
-                            success: false,
-                            error_message: format!("HTTP {}", response.status()),
-                        },
-                    );
-                }
             }
+
+            info!("Data Accuracy: {}", overall_accuracy);
             window
                 .emit(
                     "progress_end",
@@ -432,7 +434,7 @@ fn make_api_call<R: Runtime>(
         }
         Err(err) => {
             error!(
-                "Error making request to {} ({}), thread{}: {:?}",
+                "Error scraping {} ({}), thread{}: {}",
                 endpoint, req_url, i, err
             );
             if !persist_session {
@@ -454,10 +456,23 @@ fn make_api_call<R: Runtime>(
                         accuracy: 0.0,
                         applied: false,
                         success: false,
-                        error_message: format!("{} (url: {})", err, req_url),
+                        error_message: err.clone(),
                     },
                 );
             }
+            window
+                .emit(
+                    "progress_end",
+                    Packet {
+                        id: id.clone(),
+                        status: models::Status::FAILED,
+                        song_name: endpoint,
+                        status_code: 500,
+                        accuracy: 0.0,
+                        error_message: err.as_str(),
+                    },
+                )
+                .unwrap_or(());
         }
     }
 }

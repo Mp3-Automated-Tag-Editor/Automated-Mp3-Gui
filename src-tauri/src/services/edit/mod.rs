@@ -79,11 +79,12 @@ pub fn collect_mp3_paths(directory: &str) -> Result<Vec<PathBuf>, String> {
     Ok(paths)
 }
 
-pub fn get_details_for_song(
+/// Read tags + raw cover bytes (no base64). Used by the library index.
+pub fn read_song_metadata(
     complete_path: &str,
     id: u32,
     file_name: &str,
-) -> Result<models::EditViewSongMetadata, String> {
+) -> Result<(models::EditViewSongMetadata, Vec<u8>), String> {
     let path = Path::new(complete_path);
 
     if !path.is_file() {
@@ -98,8 +99,6 @@ pub fn get_details_for_song(
         .map_err(|e| format!("Bad path provided ({}): {}", complete_path, e))?
         .read()
         .map_err(|e| format!("Failed to read file ({}): {}", complete_path, e))?;
-
-    info!("Number of Tags: {}", tagged_file.tags().len());
 
     let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
         Some(tag) => tag,
@@ -128,21 +127,20 @@ pub fn get_details_for_song(
                 session_name: "None".to_string(),
             };
             song.percentage = metadata_completion_percentage(&song);
-            return Ok(song);
+            return Ok((song, Vec::new()));
         }
     };
 
-    let image_data = tag.pictures().get(0);
-    let base64_image_string = match image_data {
-        Some(data) => STANDARD.encode(data.data()),
-        None => {
-            // Lofty may miss APIC on some files; fall back to id3
+    let cover_bytes: Vec<u8> = tag
+        .pictures()
+        .get(0)
+        .map(|p| p.data().to_vec())
+        .or_else(|| {
             id3::Tag::read_from_path(path)
                 .ok()
-                .and_then(|t| t.pictures().next().map(|p| STANDARD.encode(&p.data)))
-                .unwrap_or_default()
-        }
-    };
+                .and_then(|t| t.pictures().next().map(|p| p.data.clone()))
+        })
+        .unwrap_or_default();
 
     let session = tag
         .get_string(&ItemKey::TrackSubtitle)
@@ -151,7 +149,6 @@ pub fn get_details_for_song(
         .to_string();
     // Fallback: COMM with description "Description" (written by save path)
     let session = if session == "None" || session.is_empty() {
-        // Prefer id3 for this specific comment key
         id3::Tag::read_from_path(path)
             .ok()
             .and_then(|t| {
@@ -166,8 +163,8 @@ pub fn get_details_for_song(
 
     let mut song = EditViewSongMetadata {
         id: id.to_string(),
-        file: (&file_name).to_string(),
-        path: (&complete_path).to_string(),
+        file: file_name.to_string(),
+        path: complete_path.to_string(),
         artist: tag.artist().as_deref().unwrap_or("None").to_string(),
         title: tag.title().as_deref().unwrap_or("None").to_string(),
         album: tag.album().as_deref().unwrap_or("None").to_string(),
@@ -190,14 +187,56 @@ pub fn get_details_for_song(
             .unwrap_or("None")
             .to_string(),
         discno: parse_u32_field(tag.get_string(&ItemKey::DiscNumber), 0),
-        image_src: base64_image_string,
+        // Placeholder so percentage counts cover; caller replaces with thumb path / base64
+        image_src: if cover_bytes.is_empty() {
+            String::new()
+        } else {
+            "has_cover".to_string()
+        },
         percentage: 0,
         status: status_from_description(&session),
         session_name: session,
     };
     song.percentage = metadata_completion_percentage(&song);
 
+    Ok((song, cover_bytes))
+}
+
+/// Legacy helper: full base64 cover in `image_src` (prefer library index + thumbs).
+#[allow(dead_code)]
+pub fn get_details_for_song(
+    complete_path: &str,
+    id: u32,
+    file_name: &str,
+) -> Result<models::EditViewSongMetadata, String> {
+    let (mut song, cover_bytes) = read_song_metadata(complete_path, id, file_name)?;
+    song.image_src = if cover_bytes.is_empty() {
+        String::new()
+    } else {
+        STANDARD.encode(&cover_bytes)
+    };
     Ok(song)
+}
+
+/// Full cover as base64 for Edit detail panes (on demand).
+pub fn get_cover_base64(complete_path: &str) -> Result<String, String> {
+    let path = Path::new(complete_path);
+    if !path.is_file() || !is_mp3_file(path) {
+        return Err(format!("Not a readable MP3: {}", complete_path));
+    }
+    let tagged_file = Probe::open(path)
+        .map_err(|e| format!("Bad path: {e}"))?
+        .read()
+        .map_err(|e| format!("Read failed: {e}"))?;
+    if let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+        if let Some(pic) = tag.pictures().get(0) {
+            return Ok(STANDARD.encode(pic.data()));
+        }
+    }
+    Ok(id3::Tag::read_from_path(path)
+        .ok()
+        .and_then(|t| t.pictures().next().map(|p| STANDARD.encode(&p.data)))
+        .unwrap_or_default())
 }
 
 fn strip_data_url_base64(raw: &str) -> &str {
@@ -443,7 +482,7 @@ pub fn fetch_cover_url_to_temp(url: &str) -> Result<(String, Vec<u8>), String> {
         .get(url)
         .header(
             reqwest::header::USER_AGENT,
-            "auto-mp3/2.0 (album-art-fetch)",
+            "auto-mp3/2.0.1-beta (album-art-fetch)",
         )
         .send()
         .map_err(|e| format!("Download failed: {}", e))?

@@ -8,6 +8,7 @@ import {
   displayTitle,
   trackCoverSrc,
 } from "@/components/context/PlayerContext/music-utils";
+import { useFullCover } from "@/components/context/PlayerContext/use-full-cover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { extractDominantColors } from "../lib/dominant-color";
@@ -19,7 +20,10 @@ type NowPlayingPanelProps = {
 export function NowPlayingPanel({ filterQuery = "" }: NowPlayingPanelProps) {
   const { currentTrack, queue, currentIndex, playTrack, isPlaying } =
     usePlayer();
-  const cover = trackCoverSrc(currentTrack);
+  const { src: cover, isFull } = useFullCover(currentTrack);
+  const thumb = trackCoverSrc(currentTrack);
+  // Cheap color extract from thumb; upgrade to full once available
+  const colorSrc = isFull ? cover : thumb;
   const artActive = Boolean(currentTrack);
   const [colors, setColors] = useState<[string, string] | null>(null);
 
@@ -29,13 +33,13 @@ export function NowPlayingPanel({ filterQuery = "" }: NowPlayingPanelProps) {
       return;
     }
     let cancelled = false;
-    extractDominantColors(cover).then((next) => {
+    extractDominantColors(colorSrc).then((next) => {
       if (!cancelled) setColors(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [cover, currentTrack?.path, artActive]);
+  }, [colorSrc, currentTrack?.path, artActive]);
 
   const q = filterQuery.trim().toLowerCase();
   const visibleQueue = q

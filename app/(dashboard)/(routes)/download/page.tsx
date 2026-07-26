@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToastAction } from "@/components/ui/toast";
 import { LibraryGate, useLibraryPath } from "@/components/library-gate";
 import { useToast } from "@/components/ui/use-toast";
-import { invalidateLibraryCache } from "@/app/(dashboard)/(routes)/edit/lib/library-cache";
+import { usePlayer } from "@/components/context/PlayerContext";
 import { cn } from "@/lib/utils";
 import {
   DOWNLOAD,
@@ -46,6 +46,7 @@ const DownloadMusic = () => {
   const router = useRouter();
   const libraryPath = useLibraryPath();
   const { toast } = useToast();
+  const { loadFolder } = usePlayer();
 
   const [bitRate, setBitRate] = useState<number>(DOWNLOAD.defaultBitrate);
   const [url, setUrl] = useState("");
@@ -95,7 +96,9 @@ const DownloadMusic = () => {
           const failed = r?.failedCount ?? 0;
           const failPath = r?.failureLogPath?.trim();
           if (r?.success) {
-            invalidateLibraryCache();
+            if (libraryPath) {
+              void loadFolder(libraryPath);
+            }
             const description =
               failed > 0
                 ? `${r.message}${
@@ -134,7 +137,7 @@ const DownloadMusic = () => {
       disposed = true;
       while (cleanups.length) cleanups.pop()?.();
     };
-  }, [router, toast]);
+  }, [router, toast, libraryPath, loadFolder]);
 
   const startDownload = async () => {
     if (!libraryPath) return;

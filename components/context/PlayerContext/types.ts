@@ -52,10 +52,20 @@ export type MusicView =
   | "album-detail"
   | "artist-detail";
 
+export type LibraryScanProgress = {
+  directory: string;
+  done: number;
+  total: number;
+  phase: string;
+};
+
 export type PlayerContextState = {
   tracks: Track[];
   libraryPath: string | null;
   isLoading: boolean;
+  /** True while background mtime verify / indexing is running. */
+  isScanning: boolean;
+  scanProgress: LibraryScanProgress | null;
   error: string | null;
   queue: Track[];
   currentIndex: number;

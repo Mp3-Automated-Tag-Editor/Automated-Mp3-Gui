@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/context-menu";
 import { usePlayer } from "@/components/context/PlayerContext";
 import type { AlbumGroup } from "@/components/context/PlayerContext/types";
+import { useFullCover } from "@/components/context/PlayerContext/use-full-cover";
+import { DEFAULT_COVER } from "@/constants";
 import { useToast } from "@/components/ui/use-toast";
 import { CreatePlaylistDialog } from "./create-playlist-dialog";
 
@@ -50,6 +52,7 @@ export function AlbumArtwork({
   } = usePlayer();
   const { toast } = useToast();
   const seed = album.tracks[0];
+  const { src: coverSrc } = useFullCover(seed);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
 
   return (
@@ -62,7 +65,7 @@ export function AlbumArtwork({
             onClick={onOpenAlbum}
           >
             <Image
-              src={album.cover}
+              src={coverSrc || album.cover || DEFAULT_COVER}
               alt={album.name}
               width={width}
               height={height}

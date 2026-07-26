@@ -76,7 +76,8 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
 
 export const ROUTES = {
   home: "/",
-  dashboard: "/dashboard",
+  /** App home (welcome / tool cards). Legacy `/dashboard` redirects here. */
+  dashboard: "/",
   download: "/download",
   stream: "/stream",
   edit: "/edit",
@@ -178,10 +179,16 @@ export const TAURI_EVENTS = {
   mediaPrev: "media-prev",
   mediaToggle: "media-toggle",
   mediaNext: "media-next",
+  libraryScanProgress: "library_scan_progress",
+  libraryScanDone: "library_scan_done",
+  libraryTracksBatch: "library_tracks_batch",
 } as const;
 
 export const TAURI_COMMANDS = {
+  loadLibrary: "load_library",
   readMusicDirectory: "read_music_directory",
+  getTrackCover: "get_track_cover",
+  refreshLibraryTrack: "refresh_library_track",
   updateMusicFile: "update_music_file",
   scrapeLibraryPaths: "scrape_library_paths",
   stopScrapeProcess: "stop_scrape_process",

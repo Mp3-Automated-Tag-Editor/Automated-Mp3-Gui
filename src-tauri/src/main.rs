@@ -15,7 +15,12 @@ mod util;
 
 // Main Func
 fn main() {
-    std::env::set_var("RUST_LOG", "trace");
+    if std::env::var_os("RUST_LOG").is_none() {
+        #[cfg(debug_assertions)]
+        std::env::set_var("RUST_LOG", "info");
+        #[cfg(not(debug_assertions))]
+        std::env::set_var("RUST_LOG", "warn");
+    }
     env_logger::init();
 
     #[cfg(debug_assertions)]
@@ -56,9 +61,10 @@ fn main() {
             commands::close_splashscreen,
             commands::initialize_db,
             commands::check_directory,
+            commands::load_library,
             commands::read_music_directory,
-            commands::read_music_directory_paginated,
-            commands::read_music_directory_multithreaded,
+            commands::get_track_cover,
+            commands::refresh_library_track,
             commands::update_music_file,
             commands::set_album_art,
             commands::fetch_album_art_url,
@@ -82,6 +88,9 @@ fn main() {
             trace!("JSON Handlers Successfully Initialized");
 
             repository::init();
+            if let Err(e) = services::library::ensure_schema() {
+                log::error!("library schema init failed: {e}");
+            }
             trace!("Database Successfully Initialized");
 
             // we perform the initialization code on a new task so the app doesn't freeze
