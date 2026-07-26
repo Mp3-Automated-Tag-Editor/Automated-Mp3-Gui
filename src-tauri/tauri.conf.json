@@ -11,7 +11,7 @@
   },
   "package": {
     "productName": "auto-mp3-beta",
-    "version": "2.0.1"
+    "version": "2.0.2"
   },
   "tauri": {
     "allowlist": {
@@ -135,7 +135,7 @@
         "fullscreen": false,
         "height": 720,
         "resizable": true,
-        "title": "auto-mp v2.0.1-beta",
+        "title": "auto-mp v2.0.2",
         "width": 1250,
         "visible": false,
         "x": 50,

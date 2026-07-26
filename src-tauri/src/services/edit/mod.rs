@@ -491,7 +491,7 @@ pub fn fetch_cover_url_to_temp(url: &str) -> Result<(String, Vec<u8>), String> {
         .get(url)
         .header(
             reqwest::header::USER_AGENT,
-            "auto-mp3/2.0.1-beta (album-art-fetch)",
+            "auto-mp3/2.0.2 (album-art-fetch)",
         )
         .send()
         .map_err(|e| format!("Download failed: {}", e))?

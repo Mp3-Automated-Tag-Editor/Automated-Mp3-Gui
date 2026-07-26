@@ -15,7 +15,7 @@
 
 Local desktop app (**Tauri** + **Next.js** + **Rust**) for scanning a music library, scraping metadata from a companion API, editing tags/cover art, downloading tracks, and browsing library stats.
 
-**Current version:** `2.0.1-beta`
+**Current version:** `2.0.2`
 
 ---
 
