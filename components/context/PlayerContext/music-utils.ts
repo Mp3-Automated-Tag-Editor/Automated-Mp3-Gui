@@ -20,6 +20,15 @@ export function isCoverFilePath(imageSrc: string): boolean {
   const s = imageSrc.trim();
   if (!s || s === "has_cover") return false;
   if (s.startsWith("data:")) return false;
+  // JPEG base64 magic is "/9j/…" — must not be treated as a Unix path.
+  if (
+    s.startsWith("/9j/") ||
+    s.startsWith("/9j4") ||
+    s.startsWith("iVBOR") ||
+    s.startsWith("R0lGOD")
+  ) {
+    return false;
+  }
   // Absolute paths / thumbnails written by the library indexer
   if (/^[a-zA-Z]:[\\/]/.test(s) || s.startsWith("\\\\") || s.startsWith("/")) {
     return true;

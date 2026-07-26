@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use id3::{TagLike, Version};
+use id3::frame::Frame;
+use id3::{Encoding, TagLike, Version};
 use lofty::file::TaggedFileExt;
 use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey};
@@ -287,20 +288,28 @@ fn normalize_cover_jpeg(bytes: &[u8]) -> Result<Vec<u8>, String> {
 fn attach_front_cover(tag: &mut id3::Tag, image_bytes: &[u8]) -> Result<Vec<u8>, String> {
     let jpeg = normalize_cover_jpeg(image_bytes)?;
     tag.remove_all_pictures();
-    // eyeD3 / Mp3Tag-style: FRONT_COVER, empty description, image/jpeg
-    tag.add_frame(id3::frame::Picture {
+    // eyeD3 / Mp3Tag-style: FRONT_COVER, empty description, image/jpeg.
+    // Latin1 encoding is required: rust-id3 defaults ID3v2.3 frames to UTF-16,
+    // and Mac Finder/Music skip APIC when the empty description is UTF-16 (BOM+null).
+    let frame = Frame::from(id3::frame::Picture {
         mime_type: "image/jpeg".to_string(),
         picture_type: id3::frame::PictureType::CoverFront,
         description: String::new(),
         data: jpeg.clone(),
-    });
+    })
+    .set_encoding(Some(Encoding::Latin1));
+    tag.add_frame(frame);
     Ok(jpeg)
 }
 
 /// Write like Mp3Tag's recommended MPEG settings: ID3v2.3 only (not 2.4).
+/// Also strip any trailing ID3v1 — Music/iTunes often mishandle dual v1+v2 tags.
 fn write_tag_mp3tag_style(path: &Path, tag: &id3::Tag) -> Result<(), String> {
     tag.write_to_path(path, Version::Id3v23)
-        .map_err(|e| format!("Failed to write ID3v2.3 tag: {}", e))
+        .map_err(|e| format!("Failed to write ID3v2.3 tag: {}", e))?;
+    // Best-effort: ignore errors if no v1 tag exists.
+    let _ = id3::v1::Tag::remove_from_path(path);
+    Ok(())
 }
 
 /// Persist metadata + optional cover art (Mp3Tag-compatible: ID3v2.3 + JPEG APIC).

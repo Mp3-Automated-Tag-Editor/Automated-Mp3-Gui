@@ -86,6 +86,15 @@ async function blobToCompressedJpegBase64(
 function coverPreviewSrc(src: string) {
   if (!src || src === "has_cover") return DEFAULT_COVER;
   if (src.startsWith("data:")) return src;
+  // Raw base64 before path checks — JPEG magic is "/9j/…" and base64 often contains '/'.
+  if (
+    src.startsWith("/9j/") ||
+    src.startsWith("/9j4") ||
+    src.startsWith("iVBOR") ||
+    src.startsWith("R0lGOD")
+  ) {
+    return coverDataUrl(src);
+  }
   if (isCoverFilePath(src)) {
     try {
       return convertFileSrc(src);
@@ -93,10 +102,8 @@ function coverPreviewSrc(src: string) {
       return DEFAULT_COVER;
     }
   }
-  if (src.startsWith("iVBOR")) return `data:image/png;base64,${src}`;
-  if (src.startsWith("R0lGOD")) return `data:image/gif;base64,${src}`;
-  // Heuristic: long base64 without path separators
-  if (src.length > 64 && !src.includes("/") && !src.includes("\\")) {
+  // Other long base64 without path separators
+  if (src.length > 64 && !src.includes("\\") && !/^[a-zA-Z]:/.test(src)) {
     return coverDataUrl(src);
   }
   return DEFAULT_COVER;
