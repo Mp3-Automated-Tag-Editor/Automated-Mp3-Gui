@@ -7,6 +7,7 @@ import {
   displayTitle,
   trackCoverSrc,
 } from "./music-utils";
+import { getCachedFullCover, useFullCover } from "./use-full-cover";
 import type { Track } from "./types";
 
 type MediaSessionHandlers = {
@@ -19,8 +20,7 @@ type MediaSessionHandlers = {
   getDuration: () => number;
 };
 
-function artworkForTrack(track: Track): MediaImage[] {
-  const src = trackCoverSrc(track);
+function artworkFromSrc(src: string): MediaImage[] {
   if (!src) return [];
 
   let type = "image/png";
@@ -38,6 +38,14 @@ function artworkForTrack(track: Track): MediaImage[] {
   ];
 }
 
+function artworkForTrack(track: Track, preferredSrc?: string): MediaImage[] {
+  const src =
+    preferredSrc ||
+    getCachedFullCover(track.path) ||
+    trackCoverSrc(track);
+  return artworkFromSrc(src);
+}
+
 /**
  * Bridges the in-app player to the OS media session (Windows taskbar /
  * media flyout, lock screen, hardware media keys via WebView2).
@@ -51,6 +59,7 @@ export function useMediaSession(
 ) {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
+  const { src: fullCoverSrc, isFull } = useFullCover(currentTrack);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
@@ -109,7 +118,10 @@ export function useMediaSession(
         title: displayTitle(currentTrack),
         artist: displayArtist(currentTrack),
         album: displayAlbum(currentTrack),
-        artwork: artworkForTrack(currentTrack),
+        artwork: artworkForTrack(
+          currentTrack,
+          isFull ? fullCoverSrc : undefined
+        ),
       });
     } catch {
       // MediaMetadata / artwork may reject invalid sources
@@ -119,7 +131,7 @@ export function useMediaSession(
         album: displayAlbum(currentTrack),
       });
     }
-  }, [currentTrack]);
+  }, [currentTrack, fullCoverSrc, isFull]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {

@@ -12,6 +12,7 @@ import React, {
   ReactNode,
 } from "react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
 import { Store } from "tauri-plugin-store-api";
 import {
   CONFIG_KEYS,
@@ -20,9 +21,12 @@ import {
   STORE_FILE,
   STORE_KEYS,
   TAURI_COMMANDS,
+  TAURI_EVENTS,
 } from "@/constants";
 import { groupAlbums, groupArtists, shuffleArray } from "./music-utils";
+import { invalidateFullCover } from "./use-full-cover";
 import type {
+  LibraryScanProgress,
   PlayerContextState,
   RepeatMode,
   Track,
@@ -70,6 +74,10 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [libraryPath, setLibraryPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<LibraryScanProgress | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -133,28 +141,143 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const loadFolder = useCallback(
     async (directory: string) => {
-      setIsLoading(true);
       setError(null);
+      setLibraryPath(directory);
+      setIsScanning(true);
+      setScanProgress({
+        directory,
+        done: 0,
+        total: 0,
+        phase: "discover",
+      });
+      // Block only when there is nothing to show yet
+      setIsLoading(tracksRef.current.length === 0);
       try {
-        const result = await invoke<any[]>(TAURI_COMMANDS.readMusicDirectory, { directory });
+        const result = await invoke<any[]>(TAURI_COMMANDS.loadLibrary, {
+          directory,
+        });
         const normalized = (result || [])
           .map(normalizeTrack)
           .filter((t) => t.path);
         setTracks(normalized);
-        setLibraryPath(directory);
+        setIsLoading(false);
         await persistMusicState({ libraryPath: directory });
         if (normalized.length === 0) {
-          setError("No MP3 files found in that folder.");
+          // Cold cache — keep scanning indicator; don't error until scan finishes
+          setError(null);
         }
       } catch (e: any) {
         setError(e?.message || String(e) || "Failed to load music folder.");
         setTracks([]);
-      } finally {
         setIsLoading(false);
+        setIsScanning(false);
+        setScanProgress(null);
       }
     },
     [persistMusicState]
   );
+
+  // Library scan events — progressive upsert without blocking the UI
+  useEffect(() => {
+    let disposed = false;
+    const cleanups: Array<() => void> = [];
+    const trackUnlisten = (unlisten: () => void) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      cleanups.push(unlisten);
+    };
+
+    (async () => {
+      trackUnlisten(
+        await listen<{
+          directory: string;
+          done: number;
+          total: number;
+          phase: string;
+        }>(TAURI_EVENTS.libraryScanProgress, (e) => {
+          const p = e.payload;
+          if (!p?.directory) return;
+          if (
+            libraryPath &&
+            p.directory.replace(/\\/g, "/").toLowerCase() !==
+              libraryPath.replace(/\\/g, "/").toLowerCase()
+          ) {
+            return;
+          }
+          setIsScanning(true);
+          setScanProgress({
+            directory: p.directory,
+            done: p.done ?? 0,
+            total: p.total ?? 0,
+            phase: p.phase ?? "indexing",
+          });
+        })
+      );
+      trackUnlisten(
+        await listen<{ directory: string; tracks: any[] }>(
+          TAURI_EVENTS.libraryTracksBatch,
+          (e) => {
+            const payload = e.payload;
+            if (!payload?.directory || !Array.isArray(payload.tracks)) return;
+            if (
+              libraryPath &&
+              payload.directory.replace(/\\/g, "/").toLowerCase() !==
+                libraryPath.replace(/\\/g, "/").toLowerCase()
+            ) {
+              return;
+            }
+            const incoming = payload.tracks
+              .map(normalizeTrack)
+              .filter((t) => t.path);
+            // Final snapshot batches often contain the full library; merge by path
+            setTracks((prev) => {
+              if (incoming.length >= prev.length * 0.8 && incoming.length > 50) {
+                // Likely a full reconcile snapshot
+                return incoming;
+              }
+              const map = new Map(prev.map((t) => [t.path, t]));
+              for (const t of incoming) {
+                map.set(t.path, { ...map.get(t.path), ...t });
+              }
+              return Array.from(map.values());
+            });
+            setIsLoading(false);
+          }
+        )
+      );
+      trackUnlisten(
+        await listen<{
+          directory: string;
+          trackCount: number;
+          updated: number;
+          removed: number;
+        }>(TAURI_EVENTS.libraryScanDone, (e) => {
+          const p = e.payload;
+          if (!p?.directory) return;
+          if (
+            libraryPath &&
+            p.directory.replace(/\\/g, "/").toLowerCase() !==
+              libraryPath.replace(/\\/g, "/").toLowerCase()
+          ) {
+            return;
+          }
+          setIsScanning(false);
+          setScanProgress(null);
+          setIsLoading(false);
+          if ((p.trackCount ?? 0) === 0 && tracksRef.current.length === 0) {
+            setError("No MP3 files found in that folder.");
+          }
+        })
+      );
+    })();
+
+    return () => {
+      disposed = true;
+      while (cleanups.length) cleanups.pop()?.();
+    };
+  }, [libraryPath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -582,6 +705,9 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
       const merge = (t: Track): Track =>
         t.path === partial.path ? { ...t, ...partial, path: t.path } : t;
 
+      // Art may have changed on disk — drop cached full cover for this path
+      invalidateFullCover(partial.path);
+
       setTracks((prev) => prev.map(merge));
       setQueue((prev) => prev.map(merge));
     },
@@ -668,6 +794,8 @@ export const PlayerProvider: FC<{ children: ReactNode }> = ({ children }) => {
     tracks,
     libraryPath,
     isLoading,
+    isScanning,
+    scanProgress,
     error,
     queue,
     currentIndex,

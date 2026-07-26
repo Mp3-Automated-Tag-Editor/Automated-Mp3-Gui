@@ -1,3 +1,4 @@
+import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { DEFAULT_COVER, EMPTY_TAG } from "@/constants";
 import type { AlbumGroup, ArtistGroup, Track } from "./types";
 
@@ -14,11 +15,30 @@ export function coverDataUrl(base64: string): string {
   return `data:${mime};base64,${b64}`;
 }
 
-export function trackCoverSrc(track: Track | null | undefined): string {
-  if (track?.imageSrc) {
-    return coverDataUrl(track.imageSrc);
+/** True when imageSrc is a filesystem path (cover thumb), not base64. */
+export function isCoverFilePath(imageSrc: string): boolean {
+  const s = imageSrc.trim();
+  if (!s || s === "has_cover") return false;
+  if (s.startsWith("data:")) return false;
+  // Absolute paths / thumbnails written by the library indexer
+  if (/^[a-zA-Z]:[\\/]/.test(s) || s.startsWith("\\\\") || s.startsWith("/")) {
+    return true;
   }
-  return DEFAULT_COVER;
+  return s.toLowerCase().endsWith(".jpg") || s.toLowerCase().endsWith(".jpeg");
+}
+
+export function trackCoverSrc(track: Track | null | undefined): string {
+  const src = track?.imageSrc?.trim();
+  if (!src || src === "has_cover") return DEFAULT_COVER;
+  if (src.startsWith("data:")) return src;
+  if (isCoverFilePath(src)) {
+    try {
+      return convertFileSrc(src);
+    } catch {
+      return DEFAULT_COVER;
+    }
+  }
+  return coverDataUrl(src);
 }
 
 export function displayTitle(track: Track): string {
@@ -43,6 +63,7 @@ export function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Single-pass album grouping (no nested re-walk). */
 export function groupAlbums(tracks: Track[]): AlbumGroup[] {
   const map = new Map<string, AlbumGroup>();
   for (const track of tracks) {
@@ -72,19 +93,32 @@ export function groupAlbums(tracks: Track[]): AlbumGroup[] {
   }));
 }
 
+/**
+ * Single-pass artist + album grouping. Avoids calling groupAlbums per artist
+ * (which previously re-scanned subsets and rebuilt cover URLs repeatedly).
+ */
 export function groupArtists(tracks: Track[]): ArtistGroup[] {
-  const map = new Map<string, Track[]>();
+  const byArtist = new Map<string, Track[]>();
   for (const track of tracks) {
     const name = displayArtist(track);
-    const list = map.get(name) ?? [];
+    const list = byArtist.get(name) ?? [];
     list.push(track);
-    map.set(name, list);
+    byArtist.set(name, list);
   }
-  return Array.from(map.entries())
+
+  const albums = groupAlbums(tracks);
+  const albumsByArtist = new Map<string, AlbumGroup[]>();
+  for (const album of albums) {
+    const list = albumsByArtist.get(album.artist) ?? [];
+    list.push(album);
+    albumsByArtist.set(album.artist, list);
+  }
+
+  return Array.from(byArtist.entries())
     .map(([name, artistTracks]) => ({
       name,
       tracks: artistTracks,
-      albums: groupAlbums(artistTracks),
+      albums: albumsByArtist.get(name) ?? [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -96,4 +130,27 @@ export function shuffleArray<T>(items: T[]): T[] {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+/** Map Player Track → Edit Song shape (shared library store). */
+export function trackToSongFields(track: Track) {
+  return {
+    id: track.id,
+    file: track.file,
+    artist: track.artist,
+    title: track.title,
+    album: track.album,
+    path: track.path,
+    albumArtist: track.albumArtist,
+    year: track.year,
+    track: track.track,
+    genre: track.genre,
+    comments: track.comments,
+    composer: track.composer,
+    discno: track.discno,
+    imageSrc: track.imageSrc,
+    percentage: track.percentage,
+    status: track.status,
+    sessionName: track.sessionName,
+  };
 }
