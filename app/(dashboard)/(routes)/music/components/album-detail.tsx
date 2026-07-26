@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { usePlayer } from "@/components/context/PlayerContext";
 import type { AlbumGroup } from "@/components/context/PlayerContext/types";
+import { useFullCover } from "@/components/context/PlayerContext/use-full-cover";
+import { DEFAULT_COVER } from "@/constants";
 import { SongList } from "./song-list";
 
 type AlbumDetailProps = {
@@ -24,6 +26,8 @@ export function AlbumDetail({
   onOpenAlbum,
 }: AlbumDetailProps) {
   const { playAlbum } = usePlayer();
+  const seed = album.tracks[0];
+  const { src: coverSrc } = useFullCover(seed);
 
   const playShuffled = () => {
     const shuffled = [...album.tracks].sort(() => Math.random() - 0.5);
@@ -46,7 +50,7 @@ export function AlbumDetail({
 
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end">
         <Image
-          src={album.cover}
+          src={coverSrc || album.cover || DEFAULT_COVER}
           alt={album.name}
           width={180}
           height={180}

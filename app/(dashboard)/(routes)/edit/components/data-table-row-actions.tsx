@@ -34,8 +34,16 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
 import type { PendingSuggestion } from "../lib/pending-suggestions";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import { DEFAULT_COVER, SONG_STATUS, TAURI_COMMANDS } from "@/constants";
+import {
+  coverDataUrl,
+  isCoverFilePath,
+} from "@/components/context/PlayerContext/music-utils";
+import {
+  fetchFullCover,
+  invalidateFullCover,
+} from "@/components/context/PlayerContext/use-full-cover";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -75,11 +83,23 @@ async function blobToCompressedJpegBase64(
   return b64;
 }
 
-function coverPreviewSrc(b64: string) {
-  if (!b64) return DEFAULT_COVER;
-  if (b64.startsWith("iVBOR")) return `data:image/png;base64,${b64}`;
-  if (b64.startsWith("R0lGOD")) return `data:image/gif;base64,${b64}`;
-  return `data:image/jpeg;base64,${b64}`;
+function coverPreviewSrc(src: string) {
+  if (!src || src === "has_cover") return DEFAULT_COVER;
+  if (src.startsWith("data:")) return src;
+  if (isCoverFilePath(src)) {
+    try {
+      return convertFileSrc(src);
+    } catch {
+      return DEFAULT_COVER;
+    }
+  }
+  if (src.startsWith("iVBOR")) return `data:image/png;base64,${src}`;
+  if (src.startsWith("R0lGOD")) return `data:image/gif;base64,${src}`;
+  // Heuristic: long base64 without path separators
+  if (src.length > 64 && !src.includes("/") && !src.includes("\\")) {
+    return coverDataUrl(src);
+  }
+  return DEFAULT_COVER;
 }
 
 export function DataTableRowActions<TData>({
@@ -99,9 +119,16 @@ export function DataTableRowActions<TData>({
   const hasPending = !!pending;
 
   const [formData, setFormData] = useState<Song>(songDetails);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [isDialogSystem, setIsDialogSystem] = useState(false);
   const [openImageDialog, setOpenImageDialog] = useState(false);
-  const [imageData, setImageData] = useState<string>(formData.imageSrc);
+  /** Display cover: thumb first, then original (or user-picked). */
+  const [displayCover, setDisplayCover] = useState<string>(
+    songDetails.imageSrc
+  );
+  /** User-picked replacement only — never auto-filled from get_track_cover. */
+  const [imageData, setImageData] = useState<string>("");
+  const [coverDirty, setCoverDirty] = useState(false);
   /** Optional temp path from Rust URL download (preferred over base64). */
   const [pendingCoverPath, setPendingCoverPath] = useState<string | null>(
     null
@@ -111,14 +138,32 @@ export function DataTableRowActions<TData>({
 
   useEffect(() => {
     setFormData(songDetails);
-    setImageData(songDetails.imageSrc);
+    setDisplayCover(songDetails.imageSrc);
+    setImageData("");
+    setCoverDirty(false);
     setPendingCoverPath(null);
   }, [
     songDetails.path,
     songDetails.title,
     songDetails.artist,
     songDetails.album,
+    songDetails.imageSrc,
   ]);
+
+  // Lazy-load original APIC when the edit sheet opens
+  useEffect(() => {
+    if (!sheetOpen || !songDetails.path) return;
+    let cancelled = false;
+    void fetchFullCover(songDetails.path).then((url) => {
+      if (cancelled || coverDirty) return;
+      if (url && url !== DEFAULT_COVER) {
+        setDisplayCover(url);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sheetOpen, songDetails.path, coverDirty]);
 
   const handleChange = (e: { target: { name: any; value: any } }) => {
     const { name, value } = e.target;
@@ -150,6 +195,8 @@ export function DataTableRowActions<TData>({
       );
       setPendingCoverPath(tempPath);
       setImageData(b64);
+      setDisplayCover(b64);
+      setCoverDirty(true);
     } catch (error) {
       console.error("Error fetching image:", error);
       toast({
@@ -168,6 +215,8 @@ export function DataTableRowActions<TData>({
         const b64 = await blobToCompressedJpegBase64(files[0]);
         setPendingCoverPath(null);
         setImageData(b64);
+        setDisplayCover(b64);
+        setCoverDirty(true);
       } catch (error) {
         console.error("Error reading image:", error);
         toast({
@@ -181,10 +230,14 @@ export function DataTableRowActions<TData>({
   const updateImage = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    setFormData((prev) => ({
-      ...prev,
-      imageSrc: imageData,
-    }));
+    if (imageData) {
+      setFormData((prev) => ({
+        ...prev,
+        imageSrc: imageData,
+      }));
+      setDisplayCover(imageData);
+      setCoverDirty(true);
+    }
     setOpenImageDialog(false);
   };
 
@@ -194,9 +247,12 @@ export function DataTableRowActions<TData>({
     setSaving(true);
     const coverPathAtSave = pendingCoverPath;
     try {
+      // Never re-embed lazy-fetched original unless the user changed art
       const toSave: Song = {
         ...formData,
-        imageSrc: imageData || formData.imageSrc,
+        imageSrc: coverDirty
+          ? imageData || formData.imageSrc
+          : "",
         status: SONG_STATUS.saved,
         sessionName: SONG_STATUS.saved,
       };
@@ -214,8 +270,14 @@ export function DataTableRowActions<TData>({
         return;
       }
 
-      setFormData({ ...toSave, status: SONG_STATUS.saved, sessionName: SONG_STATUS.saved });
+      invalidateFullCover(toSave.path);
+      setFormData({
+        ...formData,
+        status: SONG_STATUS.saved,
+        sessionName: SONG_STATUS.saved,
+      });
       setPendingCoverPath(null);
+      setCoverDirty(false);
       toast({
         title: "Save Successful",
         description: `Successfully Updated Song #${toSave.id} - ${toSave.file}`,
@@ -239,10 +301,12 @@ export function DataTableRowActions<TData>({
       albumArtist: pending.albumArtist || formData.albumArtist,
       composer: pending.composer || formData.composer,
       discno: pending.discno || formData.discno,
+      // Keep existing embedded art — don't send thumb path as base64
+      imageSrc: "",
       status: SONG_STATUS.saved,
       sessionName: SONG_STATUS.saved,
     };
-    setFormData(merged);
+    setFormData({ ...merged, imageSrc: formData.imageSrc });
     const val = await table.options.meta.handleSongUpdate(merged.path, merged);
     if (val[0] == false) {
       toast({
@@ -268,7 +332,7 @@ export function DataTableRowActions<TData>({
 
   return (
     <>
-      <Sheet>
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
@@ -349,8 +413,8 @@ export function DataTableRowActions<TData>({
                       <div className="place-items-center gap-4">
                         <Image
                           src={
-                            formData.imageSrc
-                              ? coverPreviewSrc(formData.imageSrc)
+                            displayCover
+                              ? coverPreviewSrc(displayCover)
                               : DEFAULT_COVER
                           }
                           width={300}
@@ -400,8 +464,8 @@ export function DataTableRowActions<TData>({
                             <div className="flex justify-center items-center">
                               <Image
                                 src={
-                                  imageData
-                                    ? coverPreviewSrc(imageData)
+                                  imageData || displayCover
+                                    ? coverPreviewSrc(imageData || displayCover)
                                     : DEFAULT_COVER
                                 }
                                 width={250}
