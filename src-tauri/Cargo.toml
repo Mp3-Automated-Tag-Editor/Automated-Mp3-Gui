@@ -41,6 +41,9 @@ dotenvy = "0.15"
 encoding_rs = "0.8"
 walkdir = "2"
 url = "2"
+rayon = "1.10"
+sha2 = "0.10"
+hex = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
