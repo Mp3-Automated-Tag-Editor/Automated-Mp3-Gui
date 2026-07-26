@@ -38,20 +38,28 @@ pub fn select_backend(url: &str) -> DownloadBackend {
     }
 }
 
-pub fn ffmpeg_on_path() -> bool {
-    StdCommand::new("ffmpeg")
-        .arg("-version")
-        .output()
+fn probe_on_path(program: &str, args: &[&str]) -> bool {
+    let mut cmd = StdCommand::new(program);
+    cmd.args(args);
+    // GUI apps on Windows allocate a visible console for child console apps
+    // unless CREATE_NO_WINDOW is set (e.g. ffmpeg/deno -version checks).
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.output()
         .map(|o| o.status.success())
         .unwrap_or(false)
 }
 
+pub fn ffmpeg_on_path() -> bool {
+    probe_on_path("ffmpeg", &["-version"])
+}
+
 pub fn deno_on_path() -> bool {
-    StdCommand::new("deno")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    probe_on_path("deno", &["--version"])
 }
 
 fn sidecar_env() -> HashMap<String, String> {
